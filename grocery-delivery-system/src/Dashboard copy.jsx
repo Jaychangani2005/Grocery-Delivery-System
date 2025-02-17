@@ -32,14 +32,12 @@ const Dashboard = () => {
         <h1 className="text-xl font-bold text-orange-500">GroceryDash</h1>
 
         {/* Desktop Menu */}
-
         <div className="hidden md:flex space-x-6">
           <NavItem text="Dashboard" active />
           <NavItem text="Product Management" />
           <NavItem text="Order Management" />
           <NavItem text="Customer Tracking" />
         </div>
-
 
         {/* Mobile Menu Toggle */}
         <div className="md:hidden">

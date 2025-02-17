@@ -32,13 +32,29 @@ const Dashboard = () => {
         <h1 className="text-xl font-bold text-orange-500">GroceryDash</h1>
 
         {/* Desktop Menu */}
-
         <div className="hidden md:flex space-x-6">
           <NavItem text="Dashboard" active />
           <NavItem text="Product Management" />
           <NavItem text="Order Management" />
           <NavItem text="Customer Tracking" />
         </div>
+
+{/*
+    <div className="bg-gray-100 min-h-screen p-6">
+      <nav className="flex justify-between items-center bg-white p-4 shadow-md">
+        <h1 className="text-xl font-bold text-orange-500">GroceryDash</h1>
+        <div className="flex space-x-6">
+          <Link to="/" className="text-gray-600 hover:text-orange-600">Dashboard</Link>
+          <Link to="/products" className="text-orange-500 font-bold">Product Management</Link>
+          <Link to="/orders" className="text-gray-600 hover:text-orange-600">Order Management</Link>
+          <Link to="/tracking" className="text-gray-600 hover:text-orange-600">Customer Tracking</Link>
+        </div>
+      </nav>
+
+      <h2 className="mt-6 text-lg font-semibold">Welcome to Dashboard</h2>
+    </div>
+
+ */}
 
 
         {/* Mobile Menu Toggle */}
