@@ -205,9 +205,9 @@ export default function OrderManagement() {
   const [filter, setFilter] = useState("all");
 
   const orders = [
-    { id: "#101", customer: "John Doe", address: "123 Main St", date: "2025-02-10", status: "Delivered" },
-    { id: "#102", customer: "Jane Smith", address: "456 Park Ave", date: "2025-02-12", status: "Pending" },
-    { id: "#103", customer: "Alice Johnson", address: "789 Elm St", date: "2025-02-14", status: "Shipped" },
+    { id: "#101", customer: "abc", address: "123 Main St", date: "2025-02-10", status: "Delivered" },
+    { id: "#102", customer: "def", address: "456 Park Ave", date: "2025-02-12", status: "Pending" },
+    { id: "#103", customer: "xyz", address: "789 Elm St", date: "2025-02-14", status: "Shipped" },
   ];
 
   const filteredOrders = orders.filter((order) =>
