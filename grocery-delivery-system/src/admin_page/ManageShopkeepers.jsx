@@ -16,10 +16,9 @@ const ManageShopkeepers = () => {
   return (
     <div className="bg-gray-50 min-h-screen">
       {/* ✅ Navbar */}
-      <nav className="fixed top-0 left-0 w-full bg-white shadow-md z-20 p-4 flex justify-between items-left">
+      {/* <nav className="fixed top-0 left-0 w-full bg-white shadow-md z-20 p-4 flex justify-between items-left">
         <h1 className="text-xl font-bold text-orange-500">GroceryDash</h1>
 
-        {/* ✅ Desktop Menu */}
         <div className="hidden md:flex space-x-6">
           <NavItem text="Dashboard"/>
           <NavItem text="Manage Shopkeeper"active />
@@ -27,7 +26,6 @@ const ManageShopkeepers = () => {
           <NavItem text="View User" />
         </div>
 
-        {/* ✅ Mobile Menu Toggle */}
         <div className="md:hidden">
           {menuOpen ? (
             <FiX size={24} className="cursor-pointer" onClick={() => setMenuOpen(false)} />
@@ -37,7 +35,6 @@ const ManageShopkeepers = () => {
         </div>
       </nav>
 
-      {/* ✅ Mobile Dropdown Menu */}
       {menuOpen && (
         <div className="md:hidden absolute top-14 left-0 w-full bg-white shadow-md p-4">
           <NavItem text="Dashboard" active />
@@ -45,7 +42,7 @@ const ManageShopkeepers = () => {
           <NavItem text="Manage Delivery" />
           <NavItem text="View User" />
         </div>
-      )}
+      )} */}
 
       {/* ✅ Page Content */}
       <div className="mt-20 p-6">
