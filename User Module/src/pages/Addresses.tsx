@@ -28,6 +28,8 @@ interface AddressesProps {
   isLoggedIn: boolean;
   user: { name: string; email: string } | null;
   onLogout: () => void;
+  selectedAddress: string;
+  onAddressChange: (address: string) => void;
 }
 
 interface Address {
@@ -183,6 +185,8 @@ const Addresses: React.FC<AddressesProps> = ({
   isLoggedIn,
   user,
   onLogout,
+  selectedAddress,
+  onAddressChange,
 }) => {
   const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -212,6 +216,8 @@ const Addresses: React.FC<AddressesProps> = ({
         isLoggedIn={isLoggedIn}
         user={user}
         onLogout={onLogout}
+        selectedAddress={selectedAddress}
+        onAddressChange={onAddressChange}
       />
 
       <main className="flex-grow container mx-auto px-4 py-8 mt-16">

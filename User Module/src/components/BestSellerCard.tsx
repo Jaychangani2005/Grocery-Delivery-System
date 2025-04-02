@@ -113,7 +113,7 @@ const BestSellerCard = ({
             onLoad={() => setLoaded(true)}
           />
         </div>
-        <div className="absolute top-2 left-2 flex flex-col gap-1.5">
+        {/* <div className="absolute top-2 left-2 flex flex-col gap-1.5">
           {product.oldPrice && (
             <Badge className="bg-red-500 text-white border-none text-xs font-medium px-2 py-0.5">
               -{Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}%
@@ -124,7 +124,7 @@ const BestSellerCard = ({
               Organic
             </Badge>
           )}
-        </div>
+        </div> */}
       </div>
 
       <div className="p-3">

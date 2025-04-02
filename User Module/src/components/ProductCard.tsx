@@ -7,7 +7,11 @@ import { BestSellerProduct } from "./BestSellerCard";
 
 export interface ProductProps extends BestSellerProduct {
   onAddToCart: (product: BestSellerProduct, quantity: number) => void;
+  onUpdateCart: (productId: number, quantity: number) => void;
+  onRemoveFromCart: (productId: number) => void;
   toggleCart: () => void;
+  isInCart?: boolean;
+  cartQuantity?: number;
 }
 
 const ProductCard = ({
@@ -15,15 +19,25 @@ const ProductCard = ({
   name,
   description,
   price,
+  oldPrice,
   image,
   category,
   inStock = true,
   unit = "each",
+  weight,
+  origin,
+  shelfLife,
+  isOrganic,
+  rating,
   onAddToCart,
+  onUpdateCart,
+  onRemoveFromCart,
   toggleCart,
+  isInCart = false,
+  cartQuantity = 0,
 }: ProductProps) => {
-  const [quantity, setQuantity] = useState(1);
-  const [isAddedToCart, setIsAddedToCart] = useState(false);
+  const [quantity, setQuantity] = useState(isInCart ? cartQuantity : 1);
+  const [isAddedToCart, setIsAddedToCart] = useState(isInCart);
   const [loaded, setLoaded] = useState(false);
   const navigate = useNavigate();
 
@@ -31,69 +45,55 @@ const ProductCard = ({
     setLoaded(true);
   }, []);
 
+  useEffect(() => {
+    setIsAddedToCart(isInCart);
+    if (isInCart) {
+      setQuantity(cartQuantity);
+    }
+  }, [isInCart, cartQuantity]);
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
+    const product: BestSellerProduct = {
+      id,
+      name,
+      description,
+      price,
+      oldPrice,
+      image,
+      category,
+      inStock,
+      unit,
+      weight,
+      origin,
+      shelfLife,
+      isOrganic,
+      rating,
+      quantity: 1
+    };
+    onAddToCart(product, 1);
     setIsAddedToCart(true);
-    onAddToCart(
-      {
-        id,
-        name,
-        description,
-        price,
-        image,
-        category,
-        unit,
-        quantity: 1,
-      },
-      1
-    );
     toggleCart();
   };
 
-  const incrementQuantity = (e: React.MouseEvent) => {
+  const handleIncrementQuantity = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setQuantity((prev) => {
-      const newQuantity = Math.min(prev + 1, 10);
-      onAddToCart(
-        {
-          id,
-          name,
-          description,
-          price,
-          image,
-          category,
-          unit,
-          quantity: newQuantity,
-        },
-        newQuantity
-      );
-      return newQuantity;
-    });
+    const newQuantity = Math.min(quantity + 1, 10);
+    setQuantity(newQuantity);
+    onUpdateCart(id, newQuantity);
   };
 
-  const decrementQuantity = (e: React.MouseEvent) => {
+  const handleDecrementQuantity = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setQuantity((prev) => {
-      if (prev === 1) {
-        setIsAddedToCart(false);
-        return 1;
-      }
-      const newQuantity = prev - 1;
-      onAddToCart(
-        {
-          id,
-          name,
-          description,
-          price,
-          image,
-          category,
-          unit,
-          quantity: newQuantity,
-        },
-        newQuantity
-      );
-      return newQuantity;
-    });
+    if (quantity <= 1) {
+      onRemoveFromCart(id);
+      setIsAddedToCart(false);
+      setQuantity(1);
+    } else {
+      const newQuantity = quantity - 1;
+      setQuantity(newQuantity);
+      onUpdateCart(id, newQuantity);
+    }
   };
 
   const handleCardClick = () => {
@@ -103,10 +103,16 @@ const ProductCard = ({
         name,
         description,
         price,
+        oldPrice,
         image,
         category,
         inStock,
         unit,
+        weight,
+        origin,
+        shelfLife,
+        isOrganic,
+        rating
       },
     });
   };
@@ -141,29 +147,19 @@ const ProductCard = ({
 
         <div className="flex items-center gap-2 mb-3">
           <span className="font-bold text-xs sm:text-sm">₹{price.toFixed(2)}</span>
+          {oldPrice && (
+            <span className="text-xs text-gray-500 line-through">₹{oldPrice.toFixed(2)}</span>
+          )}
         </div>
 
         {isAddedToCart ? (
           <div className="flex items-center gap-2">
             <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 flex items-center justify-center p-0"
-                onClick={decrementQuantity}
-              >
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDecrementQuantity}>
                 <Minus className="h-4 w-4" />
               </Button>
-              <span className="w-10 text-center text-sm font-medium select-none">
-                {quantity}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 flex items-center justify-center p-0"
-                onClick={incrementQuantity}
-                disabled={quantity >= 10}
-              >
+              <span className="w-10 text-center text-sm font-medium select-none">{quantity}</span>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleIncrementQuantity} disabled={quantity >= 10}>
                 <Plus className="h-4 w-4" />
               </Button>
             </div>

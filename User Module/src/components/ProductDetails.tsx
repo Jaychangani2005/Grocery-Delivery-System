@@ -132,23 +132,37 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
             {/* Price Section */}
             <div className="space-y-2">
               <div className="flex items-center gap-4">
-                <span className="text-2xl font-bold">₹{product.price.toFixed(2)}</span>
-              </div>
-
-              {/* Weight/Unit */}
-              {(product.weight || product.unit) && (
-                <div className="text-sm text-gray-600">
-                  {product.weight && (
-                    <span>
-                      {product.weight}
-                      {product.unit ? ` ${product.unit}` : "g"}
+                <div className="flex flex-col">
+                  {product.oldPrice && (
+                    <span className="text-lg text-gray-500 line-through">
+                      ₹{product.oldPrice.toFixed(2)}
                     </span>
                   )}
-                  {!product.weight && product.unit && (
-                    <span>Sold per {product.unit}</span>
+                  <span className="text-2xl font-bold">₹{product.price.toFixed(2)}</span>
+                  {product.oldPrice && (
+                    <span className="text-sm text-red-500">
+                      {Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}% OFF
+                    </span>
                   )}
                 </div>
-              )}
+              </div>
+
+              {/* Weight/Unit and Shelf Life */}
+              <div className="flex flex-col gap-1 text-sm text-gray-600">
+                {(product.weight || product.unit) && (
+                  <div>
+                    {product.weight && (
+                      <span>{product.weight}</span>
+                    )}
+                    {!product.weight && product.unit && (
+                      <span>Sold per {product.unit}</span>
+                    )}
+                  </div>
+                )}
+                {product.shelfLife && (
+                  <div>Shelf Life: {product.shelfLife}</div>
+                )}
+              </div>
             </div>
 
             {/* Cart Interaction */}
@@ -206,6 +220,9 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
         selectedAddress={selectedAddress}
         isLoggedIn={isLoggedIn}
         onLoginClick={() => navigate('/auth')}
+        onPlaceOrder={() => {}}
+        addresses={[]}
+        onAddressChange={onAddressChange}
       />
     </div>
   );

@@ -59,7 +59,7 @@ const Navbar = ({
           {/* Logo - Hidden on mobile, visible on desktop */}
           <Link to="/" className="hidden md:flex items-center flex-shrink-0">
             <span className="font-display text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-grocery-green to-grocery-light-green">
-              {/* GroceryHub */}
+              {/* ApnaKirana */}
               ApnaKirana
             </span>
           </Link>

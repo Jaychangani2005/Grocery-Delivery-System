@@ -14,6 +14,7 @@ import { BestSellerProduct } from "./components/BestSellerCard";
 import Auth from "./pages/Auth";
 import Orders from "./pages/Orders";
 import Addresses from "./pages/Addresses";
+import { toast } from "react-hot-toast";
 
 const queryClient = new QueryClient();
 
@@ -22,21 +23,62 @@ interface User {
   email: string;
 }
 
+interface Order {
+  id: string;
+  items: BestSellerProduct[];
+  totalAmount: number;
+  address: string;
+  date: string;
+  status: 'pending' | 'delivered' | 'cancelled';
+}
+
 const AppContent = () => {
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState<BestSellerProduct[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    // Initialize from localStorage
+    return localStorage.getItem("isLoggedIn") === "true";
+  });
+  const [user, setUser] = useState<User | null>(() => {
+    // Initialize from localStorage
+    const savedUser = localStorage.getItem("user");
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [selectedAddress, setSelectedAddress] = useState(() => {
     // Initialize from localStorage
     return localStorage.getItem("selectedAddress") || "";
   });
+  const [addresses, setAddresses] = useState<string[]>(() => {
+    const savedAddresses = localStorage.getItem("addresses");
+    return savedAddresses ? JSON.parse(savedAddresses) : [
+      "123 Main Street, City, State, Country",
+      "456 Park Avenue, City, State, Country",
+      "789 Beach Road, City, State, Country"
+    ];
+  });
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [showOrderSuccess, setShowOrderSuccess] = useState(false);
+
+  // Persist authentication state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("isLoggedIn", isLoggedIn.toString());
+    if (user) {
+      localStorage.setItem("user", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("user");
+    }
+  }, [isLoggedIn, user]);
 
   // Persist selectedAddress to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem("selectedAddress", selectedAddress);
   }, [selectedAddress]);
+
+  // Persist addresses to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("addresses", JSON.stringify(addresses));
+  }, [addresses]);
 
   const toggleCart = () => {
     setIsCartOpen(!isCartOpen);
@@ -50,6 +92,8 @@ const AppContent = () => {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUser(null);
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("user");
   };
 
   const handleAddressChange = (address: string) => {
@@ -84,6 +128,43 @@ const AppContent = () => {
     setCartItems((prevItems) => prevItems.filter((item) => item.id !== productId));
   };
 
+  const handlePlaceOrder = () => {
+    if (!isLoggedIn) {
+      toast.error("Please login to place an order");
+      return;
+    }
+
+    if (!selectedAddress) {
+      toast.error("Please select a delivery address");
+      return;
+    }
+
+    if (cartItems.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+
+    const totalAmount = cartItems.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+
+    const newOrder: Order = {
+      id: `ORD${Date.now()}`,
+      items: [...cartItems],
+      totalAmount,
+      address: selectedAddress,
+      date: new Date().toISOString(),
+      status: 'pending'
+    };
+
+    setOrders(prevOrders => [...prevOrders, newOrder]);
+    setCartItems([]);
+    setIsCartOpen(false);
+    setShowOrderSuccess(true);
+    toast.success("Order placed successfully!");
+  };
+
   const commonProps = {
     cartItems,
     toggleCart,
@@ -92,6 +173,9 @@ const AppContent = () => {
     onLogout: handleLogout,
     selectedAddress,
     onAddressChange: handleAddressChange,
+    orders,
+    showOrderSuccess,
+    setShowOrderSuccess
   };
 
   return (
@@ -104,6 +188,9 @@ const AppContent = () => {
             onUpdateCart={handleUpdateCart}
             onRemoveFromCart={handleRemoveFromCart}
             isCartOpen={isCartOpen}
+            onLoginClick={() => navigate('/auth')}
+            addresses={addresses}
+            onPlaceOrder={handlePlaceOrder}
           />
         } />
         <Route path="/auth" element={
@@ -130,13 +217,9 @@ const AppContent = () => {
             onUpdateCart={handleUpdateCart}
             onRemoveFromCart={handleRemoveFromCart}
             isCartOpen={isCartOpen}
-            toggleCart={toggleCart}
-            isLoggedIn={isLoggedIn}
-            user={user}
-            onLogout={handleLogout}
-            selectedAddress={selectedAddress}
-            onAddressChange={handleAddressChange}
             onLoginClick={() => navigate('/auth')}
+            addresses={addresses}
+            onPlaceOrder={handlePlaceOrder}
           />
         } />
         <Route path="*" element={<NotFound />} />
@@ -150,7 +233,24 @@ const AppContent = () => {
         selectedAddress={selectedAddress}
         isLoggedIn={isLoggedIn}
         onLoginClick={() => navigate('/auth')}
+        onPlaceOrder={handlePlaceOrder}
+        addresses={addresses}
+        onAddressChange={handleAddressChange}
       />
+      {showOrderSuccess && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-lg max-w-md w-full mx-4">
+            <h2 className="text-2xl font-bold text-green-600 mb-4">Order Placed Successfully!</h2>
+            <p className="text-gray-600 mb-4">Thank you for your order. We'll notify you when it's ready for delivery.</p>
+            <button
+              onClick={() => setShowOrderSuccess(false)}
+              className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Continue Shopping
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 };

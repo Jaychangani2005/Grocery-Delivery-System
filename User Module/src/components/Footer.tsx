@@ -49,7 +49,7 @@ const Footer = () => {
           <div className="lg:col-span-4">
             <Link to="/" className="inline-block mb-4">
               <span className="font-display text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-grocery-green to-grocery-light-green">
-                GroceryHub
+                ApnaKirana
               </span>
             </Link>
             <p className="text-sm text-muted-foreground mb-6">
@@ -71,7 +71,7 @@ const Footer = () => {
               <div className="flex items-center space-x-3">
                 <Mail className="h-5 w-5 text-primary shrink-0" />
                 <p className="text-sm text-muted-foreground">
-                  support@groceryhub.com
+                  support@ApnaKirana.com
                 </p>
               </div>
             </div>
@@ -154,7 +154,7 @@ const Footer = () => {
 
         <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
           <p className="text-sm text-muted-foreground">
-            © {year} GroceryHub. All rights reserved.
+            © {year} ApnaKirana. All rights reserved.
           </p>
           <div className="flex items-center space-x-4">
             <Link

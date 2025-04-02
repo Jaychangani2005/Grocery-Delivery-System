@@ -101,6 +101,9 @@ const MasalaOil = ({
         selectedAddress={selectedAddress}
         isLoggedIn={isLoggedIn}
         onLoginClick={onLoginClick}
+        onPlaceOrder={() => {}}
+        addresses={[]}
+        onAddressChange={() => {}}
       />
     </section>
   );

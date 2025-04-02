@@ -28,6 +28,9 @@ interface IndexProps {
   onLogout: () => void;
   selectedAddress: string;
   onAddressChange: (address: string) => void;
+  onLoginClick: () => void;
+  addresses: string[];
+  onPlaceOrder: () => void;
 }
 
 const Index = ({
@@ -42,6 +45,9 @@ const Index = ({
   onLogout,
   selectedAddress,
   onAddressChange,
+  onLoginClick,
+  addresses,
+  onPlaceOrder,
 }: IndexProps) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -102,7 +108,7 @@ const Index = ({
           toggleCart={toggleCart}
           selectedAddress={selectedAddress}
           isLoggedIn={isLoggedIn}
-          onLoginClick={() => navigate('/auth')}
+          onLoginClick={onLoginClick}
         />
 
         <AttaRiceDal
@@ -114,7 +120,7 @@ const Index = ({
           toggleCart={toggleCart}
           selectedAddress={selectedAddress}
           isLoggedIn={isLoggedIn}
-          onLoginClick={() => navigate('/auth')}
+          onLoginClick={onLoginClick}
         />
 
         <MasalaOil
@@ -126,7 +132,7 @@ const Index = ({
           toggleCart={toggleCart}
           selectedAddress={selectedAddress}
           isLoggedIn={isLoggedIn}
-          onLoginClick={() => navigate('/auth')}
+          onLoginClick={onLoginClick}
         />
 
         {/* <FeaturedProducts /> */}
@@ -135,7 +141,7 @@ const Index = ({
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-8 md:mb-12">
               <h2 className="text-xl md:text-3xl font-display font-bold mb-2 md:mb-4">
-                Why Choose GroceryHub
+                Why Choose ApnaKirana
               </h2>
               <p className="text-sm md:text-base text-muted-foreground max-w-2xl mx-auto">
                 We're committed to providing the best grocery delivery experience with quality products and exceptional service.
@@ -170,7 +176,7 @@ const Index = ({
                   </h2>
                   <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-6">
                     Get exclusive app-only deals and manage your deliveries with ease.
-                    Download the GroceryHub app today.
+                    Download the ApnaKirana app today.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
                     <img
@@ -214,11 +220,14 @@ const Index = ({
         isOpen={isCartOpen}
         onClose={toggleCart}
         cartItems={cartItems}
-        removeFromCart={onRemoveFromCart}
         updateQuantity={onUpdateCart}
+        removeFromCart={onRemoveFromCart}
         selectedAddress={selectedAddress}
         isLoggedIn={isLoggedIn}
-        onLoginClick={() => navigate('/auth')}
+        onLoginClick={onLoginClick}
+        onPlaceOrder={onPlaceOrder}
+        addresses={addresses}
+        onAddressChange={onAddressChange}
       />
     </div>
   );

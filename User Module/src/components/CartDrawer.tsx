@@ -19,7 +19,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, addDays, addHours } from "date-fns";
 
 interface CartDrawerProps {
@@ -31,6 +31,9 @@ interface CartDrawerProps {
   selectedAddress: string;
   isLoggedIn: boolean;
   onLoginClick: () => void;
+  onPlaceOrder: () => void;
+  addresses: string[];
+  onAddressChange: (address: string) => void;
 }
 
 const CartDrawer: React.FC<CartDrawerProps> = ({
@@ -42,6 +45,9 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   selectedAddress,
   isLoggedIn,
   onLoginClick,
+  onPlaceOrder,
+  addresses,
+  onAddressChange,
 }) => {
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'address' | 'payment' | 'summary'>('cart');
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'upi' | 'cod' | 'wallet'>('card');
@@ -51,6 +57,25 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
     cvv: '',
     name: ''
   });
+
+  // Reset function to clear all states
+  const resetCheckout = () => {
+    setCheckoutStep('cart');
+    setPaymentMethod('card');
+    setCardDetails({
+      number: '',
+      expiry: '',
+      cvv: '',
+      name: ''
+    });
+  };
+
+  // Reset when drawer is closed
+  useEffect(() => {
+    if (!isOpen) {
+      resetCheckout();
+    }
+  }, [isOpen]);
 
   const calculateTotal = () => {
     return cartItems.reduce((total, item) => total + Number(item.price) * item.quantity, 0);
@@ -74,6 +99,12 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
 
   const handleBackToCart = () => {
     setCheckoutStep('cart');
+  };
+
+  const handlePlaceOrder = () => {
+    onPlaceOrder();
+    resetCheckout();
+    onClose();
   };
 
   const renderCartItems = () => (
@@ -163,17 +194,40 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
             <h3 className="text-lg font-medium">Delivery Address</h3>
           </div>
 
-          <div className="bg-white p-4 rounded-lg border">
-            <p className="text-sm text-gray-600">{selectedAddress}</p>
+          <div className="space-y-3">
+            {addresses.map((address, index) => (
+              <div
+                key={index}
+                className={`bg-white p-4 rounded-lg border cursor-pointer transition-colors ${
+                  selectedAddress === address
+                    ? 'border-primary bg-primary/5'
+                    : 'hover:border-primary/50'
+                }`}
+                onClick={() => onAddressChange(address)}
+              >
+                <div className="flex items-start justify-between">
+                  <p className="text-sm text-gray-600">{address}</p>
+                  {selectedAddress === address && (
+                    <Check className="h-4 w-4 text-primary" />
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
         <Button 
           className="w-full bg-primary"
           onClick={handleProceedToPayment}
+          disabled={!selectedAddress}
         >
           Proceed to Payment
         </Button>
+        {!selectedAddress && (
+          <p className="text-sm text-muted-foreground text-center">
+            Please select a delivery address to continue
+          </p>
+        )}
       </div>
     </div>
   );
@@ -404,10 +458,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
 
           <Button 
             className="w-full bg-primary"
-            onClick={() => {
-              // Handle order placement
-              onClose();
-            }}
+            onClick={handlePlaceOrder}
           >
             Place Order
           </Button>
