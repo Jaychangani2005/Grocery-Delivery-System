@@ -12,6 +12,7 @@ const CategoryGrid = ({ categories }: CategoryGridProps) => {
   const [imageErrors, setImageErrors] = useState<{ [key: string]: boolean }>({});
 
   const handleImageError = (categoryName: string) => {
+    console.log('Image error for category:', categoryName);
     setImageErrors(prev => ({ ...prev, [categoryName]: true }));
   };
 
@@ -39,7 +40,7 @@ const CategoryGrid = ({ categories }: CategoryGridProps) => {
                 <img 
                   src={imageErrors[category.name] 
                     ? "/placeholder.svg" 
-                    : `http://localhost:5000/images/${category.name.toLowerCase().replace(/\s+/g, '-')}.jpg`}
+                    : category.image}
                   alt={category.name}
                   className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-110"
                   onError={() => handleImageError(category.name)}

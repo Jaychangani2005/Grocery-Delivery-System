@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../config/db');
 const multer = require("multer");
 const path = require("path");
+const { broadcastUpdate, broadcastNewOrder } = require('../websocket');
 
 // Configure storage for uploaded files
 const storage = multer.diskStorage({
@@ -37,15 +38,13 @@ router.get("/categories", (req, res) => {
   // Update the "Add Product" route to handle images
   router.post("/products", upload.single("image"), (req, res) => {
     const { productName, unit, category, price, description, mrp, stock, shelflife } = req.body;
-    const imageFile  = req.file ? req.file.filename : null;
-    if (!imageFile) {
-      return res.status(400).json({ error: "Image is required" });
-    }
-    const seller_id = 1;
+    const imageFile = req.file ? req.file.filename : null;
+    const seller_id = 1; // For development, hardcoded seller_id
+
     if (!productName || !unit || !category || !price || !description || !mrp || !stock || !shelflife || !seller_id) {
       return res.status(400).json({ error: "All required fields are required" });
     }
-  
+
     const getCategoryIdQuery = "SELECT category_id FROM product_categories WHERE name = ?";
     db.query(getCategoryIdQuery, [category], (err, results) => {
       if (err) {
@@ -55,13 +54,14 @@ router.get("/categories", (req, res) => {
       if (results.length === 0) {
         return res.status(400).json({ error: "Invalid category" });
       }
-  
+
       const categoryId = results[0].category_id;
-  
+
       const insertProductQuery = `
         INSERT INTO products (seller_id, name, product_detail, unit, price, mrp, stock, shelflife, category_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
+
       db.query(
         insertProductQuery,
         [seller_id, productName, description, unit, price, mrp, stock, shelflife, categoryId],
@@ -70,42 +70,343 @@ router.get("/categories", (req, res) => {
             console.error("Error inserting product:", err);
             return res.status(500).json({ error: "Database error: " + err.message });
           }
-  
+
           const productId = result.insertId;
-          const imagePath = `/images/${imageFile.filename}`;
-  
-          const insertImageQuery = `
-            INSERT INTO product_images (product_id, image_url)
-            VALUES (?, ?)
-          `;
-          db.query(insertImageQuery, [productId, imagePath], (err) => {
-            if (err) {
-              console.error("Error inserting image:", err);
-              return res.status(500).json({ error: "Database error: " + err.message });
-            }
+          const imagePath = imageFile ? `/images/${imageFile}` : null;
+
+          if (imagePath) {
+            const insertImageQuery = `
+              INSERT INTO product_images (product_id, image_url)
+              VALUES (?, ?)
+            `;
+            db.query(insertImageQuery, [productId, imagePath], (err) => {
+              if (err) {
+                console.error("Error inserting image:", err);
+                return res.status(500).json({ error: "Database error: " + err.message });
+              }
+              
+              // Broadcast the update to all connected clients
+              broadcastUpdate({
+                type: 'PRODUCT_ADDED',
+                data: {
+                  id: productId,
+                  name: productName,
+                  price,
+                  category,
+                  image: imagePath,
+                  unit,
+                  description,
+                  mrp,
+                  stock,
+                  shelflife
+                }
+              });
+              
+              res.status(201).json({ message: "Product added successfully", productId });
+            });
+          } else {
+            // Broadcast the update to all connected clients
+            broadcastUpdate({
+              type: 'PRODUCT_ADDED',
+              data: {
+                id: productId,
+                name: productName,
+                price,
+                category,
+                image: null,
+                unit,
+                description,
+                mrp,
+                stock,
+                shelflife
+              }
+            });
             
             res.status(201).json({ message: "Product added successfully", productId });
-          });
+          }
         }
       );
     });
   });
 
-  // Existing routes (unchanged)
-  router.get('/new-orders', (req, res) => {
-  const { seller_id } = req.query;
+// Function to emit notifications for new orders
+const emitNewOrderNotification = (req, order) => {
+  const io = req.app.get('io');
+  if (!io) {
+    console.error('Socket.io instance not found');
+    return;
+  }
+  
+  // Get the seller's socket ID from the connectedSellers map
+  const sellerId = order.seller_id;
+  const socketId = req.app.get('connectedSellers')?.get(sellerId);
+  
+  if (socketId) {
+    console.log(`Emitting new order notification to seller ${sellerId} with socket ID ${socketId}`);
+    io.to(socketId).emit('newOrder', {
+      orderId: order.order_id,
+      customer: order.customer_name,
+      address: order.area,
+      createdAt: order.created_at
+    });
+  } else {
+    console.log(`Seller ${sellerId} not connected`);
+  }
+};
+
+// Get all orders for a seller with product details
+router.get("/seller-orders", (req, res) => {
+  const { seller_id, address_id } = req.query;
+  
+  const query = `SELECT 
+  o.order_id,
+  o.user_id,
+  o.address_id,
+  o.status,
+  o.payment_method,
+  o.created_at,
+  u.full_name AS customer_name,
+  ua.area,
+  GROUP_CONCAT(
+    DISTINCT CONCAT(
+      p.name, '|',
+      oi.quantity, '|',
+      oi.price, '|',
+      (oi.quantity * oi.price)
+    ) SEPARATOR ';;'
+  ) AS product_details,
+  GROUP_CONCAT(
+    DISTINCT CONCAT(
+      osh.new_status, '|',
+      COALESCE(osh.changed_by, 'system'), '|',
+      osh.timestamp
+    ) ORDER BY osh.timestamp DESC SEPARATOR ';;'
+  ) AS status_history,
+  SUM(oi.quantity * oi.price) AS order_total
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN products p ON oi.product_id = p.product_id
+JOIN users u ON o.user_id = u.user_id
+JOIN user_addresses ua ON o.address_id = ua.address_id
+LEFT JOIN order_status_history osh ON o.order_id = osh.order_id
+${address_id ? 'WHERE o.address_id = ?' : ''}
+GROUP BY 
+  o.order_id,
+  o.user_id,
+  o.address_id,
+  o.status,
+  o.payment_method,
+  o.created_at,
+  u.full_name,
+  ua.area
+HAVING SUM(CASE WHEN p.seller_id <> ? THEN 1 ELSE 0 END) = 0
+ORDER BY o.created_at DESC;
+  `;
+  
+  const params = address_id ? [seller_id, seller_id, address_id] : [seller_id, seller_id];
+  
+  console.log('Executing query:', query);
+  console.log('With parameters:', params);
+  
+  db.query(query, params, (err, results) => {
+    if (err) {
+      console.error("Error fetching orders:", err);
+      return res.status(500).json({ error: "Failed to fetch orders" });
+    }
+    
+    console.log('Query results:', results);
+    
+    // Process the results to format the product details and status history
+    const ordersWithDetails = results.map(order => {
+      // Process product details
+      const products = order.product_details ? order.product_details.split(';;').map(product => {
+        const [name, quantity, price, total] = product.split('|');
+        return {
+          name,
+          quantity: parseInt(quantity),
+          price: parseFloat(price),
+          total: parseFloat(total)
+        };
+      }) : [];
+
+      // Process status history
+      const statusHistory = order.status_history ? order.status_history.split(';;').map(status => {
+        const [newStatus, changedBy, timestamp] = status.split('|');
+        return {
+          status: newStatus,
+          changed_by: changedBy,
+          timestamp: new Date(timestamp)
+        };
+      }) : [];
+
+      return {
+        ...order,
+        products,
+        status_history: statusHistory,
+        order_total: parseFloat(order.order_total).toFixed(2)
+      };
+    });
+    
+    // Emit notifications for new orders
+    ordersWithDetails.forEach(order => {
+      if (new Date(order.created_at) > new Date(Date.now() - 60000)) {
+        broadcastNewOrder(order);
+      }
+    });
+    
+    res.json(ordersWithDetails);
+  });
+});
+
+// Get all orders for a seller
+router.get("/orders", (req, res) => {
+  const { seller_id, address_id } = req.query;
+  
+  const query = `
+    SELECT DISTINCT 
+      o.*,
+      u.full_name as customer_name,
+      ua.area,
+      GROUP_CONCAT(
+        DISTINCT CONCAT(
+          p.name, ' x ', oi.quantity, ' @ ₹', oi.price
+        ) SEPARATOR ', '
+      ) as product_details,
+      GROUP_CONCAT(
+        DISTINCT CONCAT(
+          osh.new_status, '|',
+          COALESCE(osh.changed_by, 'system'), '|',
+          osh.timestamp
+        ) ORDER BY osh.timestamp DESC
+      ) as status_history,
+      SUM(oi.quantity * oi.price) as order_total
+    FROM orders o
+    JOIN order_items oi ON o.order_id = oi.order_id
+    JOIN products p ON oi.product_id = p.product_id AND p.seller_id = ?
+    JOIN users u ON o.user_id = u.user_id
+    JOIN user_addresses ua ON o.address_id = ua.address_id
+    LEFT JOIN order_status_history osh ON o.order_id = osh.order_id
+    ${address_id ? 'WHERE o.address_id = ?' : ''}
+    GROUP BY 
+      o.order_id, 
+      o.user_id, 
+      o.address_id, 
+      o.total, 
+      o.status, 
+      o.payment_method, 
+      o.created_at, 
+      u.full_name, 
+      ua.area
+    ORDER BY o.created_at DESC
+  `;
+  
+  const params = address_id ? [seller_id, address_id] : [seller_id];
+  
+  console.log('Executing query:', query);
+  console.log('With parameters:', params);
+  
+  db.query(query, params, (err, results) => {
+    if (err) {
+      console.error("Error fetching orders:", err);
+      return res.status(500).json({ error: "Failed to fetch orders" });
+    }
+    
+    console.log('Query results:', results);
+    
+    // Process the results to format the status history and other details
+    const ordersWithHistory = results.map(order => {
+      const statusHistory = order.status_history ? 
+        order.status_history.split(',').map(status => {
+          const [newStatus, changedBy, timestamp] = status.split('|');
+          return {
+            status: newStatus,
+            changed_by: changedBy,
+            timestamp: new Date(timestamp)
+          };
+        }) : [];
+
+      return {
+        ...order,
+        status_history: statusHistory,
+        products: order.product_details ? order.product_details.split(', ') : [],
+        order_total: Number(order.order_total).toFixed(2)
+      };
+    });
+    
+    // Emit notifications for new orders
+    ordersWithHistory.forEach(order => {
+      if (new Date(order.created_at) > new Date(Date.now() - 60000)) {
+        emitNewOrderNotification(req, order);
+      }
+    });
+    
+    res.json(ordersWithHistory);
+  });
+});
+
+// Check for new orders since last check
+router.get("/check-new-orders", (req, res) => {
+  const { seller_id, last_check } = req.query;
+  const lastCheckDate = new Date(last_check);
+  
+  const query = `
+    SELECT DISTINCT o.*, u.full_name as customer_name, ua.area
+    FROM orders o
+    JOIN order_items oi ON o.order_id = oi.order_id
+    JOIN products p ON oi.product_id = p.product_id
+    JOIN users u ON o.user_id = u.user_id
+    JOIN user_addresses ua ON o.address_id = ua.address_id
+    WHERE p.seller_id = ?
+    AND o.created_at > ?
+    ORDER BY o.created_at DESC
+  `;
+  
+  db.query(query, [seller_id, lastCheckDate], (err, results) => {
+    if (err) {
+      console.error("Error checking for new orders:", err);
+      return res.status(500).json({ error: "Failed to check for new orders" });
+    }
+    
+    // Emit notifications for new orders
+    results.forEach(order => {
+      emitNewOrderNotification(req, order);
+    });
+    
+    res.json({ 
+      newOrders: results.length > 0,
+      orders: results
+    });
+  });
+});
+
+// Existing routes (unchanged)
+router.get('/new-orders', (req, res) => {
+  const { seller_id, address_id } = req.query;
     const query = `
       SELECT o.order_id AS id, u.full_name AS customer, ua.area AS address, 
           GROUP_CONCAT(p.name) AS details, o.created_at
-      FROM orders o
+      FROM (
+        SELECT DISTINCT o.order_id, o.user_id, o.created_at, o.address_id
+        FROM orders o
+        JOIN order_items oi ON o.order_id = oi.order_id
+        JOIN products p ON oi.product_id = p.product_id
+        WHERE o.status = 'new' AND p.seller_id = ?
+        ${address_id ? 'AND o.address_id = ?' : ''}
+      ) o
       JOIN users u ON o.user_id = u.user_id
-      JOIN user_addresses ua ON u.user_id = ua.user_id
+      JOIN user_addresses ua ON o.address_id = ua.address_id
       JOIN order_items oi ON o.order_id = oi.order_id
       JOIN products p ON oi.product_id = p.product_id
-    WHERE o.status = 'new' AND p.seller_id = ?
-    GROUP BY o.order_id, u.full_name, ua.area, o.created_at;
+      GROUP BY o.order_id, u.full_name, ua.area, o.created_at;
     `;
-  db.query(query, [seller_id], (err, results) => {
+  
+  // Prepare query parameters
+  const queryParams = [seller_id];
+  if (address_id) {
+    queryParams.push(address_id);
+  }
+  
+  db.query(query, queryParams, (err, results) => {
       if (err) {
         console.error('Error fetching new orders:', err);
         return res.status(500).json({ error: 'Database error' });
@@ -119,13 +420,18 @@ router.get("/categories", (req, res) => {
     const query = `
       SELECT o.order_id AS id, u.full_name AS customer, ua.area AS address, 
           GROUP_CONCAT(p.name) AS details, o.status, o.created_at
-      FROM orders o
+      FROM (
+        SELECT DISTINCT o.order_id, o.user_id, o.status, o.created_at, o.address_id
+        FROM orders o
+        JOIN order_items oi ON o.order_id = oi.order_id
+        JOIN products p ON oi.product_id = p.product_id
+        WHERE o.status = 'pending' AND p.seller_id = ?
+      ) o
       JOIN users u ON o.user_id = u.user_id
-      JOIN user_addresses ua ON u.user_id = ua.user_id
+      JOIN user_addresses ua ON o.address_id = ua.address_id
       JOIN order_items oi ON o.order_id = oi.order_id
       JOIN products p ON oi.product_id = p.product_id
-    WHERE o.status = 'pending' AND p.seller_id = ?
-    GROUP BY o.order_id, u.full_name, ua.area, o.status, o.created_at;
+      GROUP BY o.order_id, u.full_name, ua.area, o.status, o.created_at;
     `;
   db.query(query, [seller_id], (err, results) => {
       if (err) {
@@ -148,12 +454,15 @@ router.get("/categories", (req, res) => {
     const query = `
     SELECT o.order_id AS id, u.full_name AS customer, ua.area AS address, 
           o.status, o.created_at
-      FROM orders o
+      FROM (
+        SELECT DISTINCT o.order_id, o.user_id, o.status, o.created_at, o.address_id
+        FROM orders o
+        JOIN order_items oi ON o.order_id = oi.order_id
+        JOIN products p ON oi.product_id = p.product_id
+        WHERE o.status = 'Out For Delivery' AND p.seller_id = ?
+      ) o
       JOIN users u ON o.user_id = u.user_id 
-      JOIN user_addresses ua ON u.user_id = ua.user_id 
-    JOIN order_items oi ON o.order_id = oi.order_id
-    JOIN products p ON oi.product_id = p.product_id
-    WHERE o.status = 'Out For Delivery' AND p.seller_id = ?;
+      JOIN user_addresses ua ON o.address_id = ua.address_id;
     `;
   db.query(query, [seller_id], (err, results) => {
       if (err) {
@@ -175,12 +484,15 @@ router.get("/categories", (req, res) => {
     const query = `
     SELECT o.order_id AS id, u.full_name AS customer, ua.area AS address, 
           o.status, o.created_at
-      FROM orders o
+      FROM (
+        SELECT DISTINCT o.order_id, o.user_id, o.status, o.created_at, o.address_id
+        FROM orders o
+        JOIN order_items oi ON o.order_id = oi.order_id
+        JOIN products p ON oi.product_id = p.product_id
+        WHERE o.status = 'delivered' AND p.seller_id = ?
+      ) o
       JOIN users u ON o.user_id = u.user_id
-      JOIN user_addresses ua ON u.user_id = ua.user_id
-    JOIN order_items oi ON o.order_id = oi.order_id
-    JOIN products p ON oi.product_id = p.product_id
-    WHERE o.status = 'delivered' AND p.seller_id = ?;
+      JOIN user_addresses ua ON o.address_id = ua.address_id;
     `;
   db.query(query, [seller_id], (err, results) => {
       if (err) {
@@ -232,48 +544,131 @@ router.get("/categories", (req, res) => {
 
   router.get('/order-details/:orderId', (req, res) => {
     const { orderId } = req.params;
+    const { seller_id } = req.query;
+
+    if (!seller_id) {
+      return res.status(400).json({ error: "Seller ID is required" });
+    }
 
     const query = `
       SELECT 
         o.order_id,
-        DATE_FORMAT(o.created_at, '%Y-%m-%d %H:%i:%s') AS order_date,
         o.status AS order_status,
-        o.payment_method AS payment_status,
-        p.name AS product_name,
-        pc.name AS category,
-        psc.name AS subcategory,
-        p.price,
-        p.product_detail AS description,
-        oi.quantity,
-        (p.price * oi.quantity) AS total_price,
+        o.payment_method,
+        o.total AS order_total,
+        DATE_FORMAT(o.created_at, '%Y-%m-%d %H:%i:%s') AS order_date,
         u.full_name AS customer_name,
-        NULL AS phone_number,
-        CONCAT(COALESCE(ua.house_no, ''), ', ',
-              COALESCE(ua.building_name, ''), ', ',
-              COALESCE(ua.area, ''), ', ',
-              COALESCE(ua.landmark, '')) AS delivery_address
+        ua.phone AS phone_number,
+        CONCAT(
+          COALESCE(ua.house_no, ''), 
+          CASE WHEN ua.house_no IS NOT NULL THEN ', ' ELSE '' END,
+          COALESCE(ua.building_name, ''),
+          CASE WHEN ua.building_name IS NOT NULL THEN ', ' ELSE '' END,
+          COALESCE(ua.area, ''),
+          CASE WHEN ua.area IS NOT NULL THEN ', ' ELSE '' END,
+          COALESCE(ua.landmark, '')
+        ) AS delivery_address,
+        GROUP_CONCAT(
+          DISTINCT CONCAT(
+            p.name, '|',
+            p.product_detail, '|',
+            pc.name, '|',
+            COALESCE(psc.name, 'N/A'), '|',
+            oi.quantity, '|',
+            oi.price, '|',
+            (oi.quantity * oi.price)
+          ) SEPARATOR ';;'
+        ) as product_details,
+        GROUP_CONCAT(
+          DISTINCT CONCAT(
+            osh.new_status, '|',
+            COALESCE(osh.changed_by, 'system'), '|',
+            osh.timestamp
+          ) ORDER BY osh.timestamp DESC SEPARATOR ';;'
+        ) as status_history
       FROM orders o
       JOIN order_items oi ON o.order_id = oi.order_id
-      JOIN products p ON oi.product_id = p.product_id
+      JOIN products p ON oi.product_id = p.product_id AND p.seller_id = ?
       JOIN product_categories pc ON p.category_id = pc.category_id
       LEFT JOIN product_subcategories psc ON p.subcategory_id = psc.subcategory_id
       JOIN users u ON o.user_id = u.user_id
-      LEFT JOIN user_addresses ua ON u.user_id = ua.user_id
-      WHERE o.order_id = ?;
+      LEFT JOIN user_addresses ua ON o.address_id = ua.address_id
+      LEFT JOIN order_status_history osh ON o.order_id = osh.order_id
+      WHERE o.order_id = ?
+      GROUP BY 
+        o.order_id,
+        o.status,
+        o.payment_method,
+        o.total,
+        o.created_at,
+        u.full_name,
+        ua.phone,
+        ua.house_no,
+        ua.building_name,
+        ua.area,
+        ua.landmark;
     `;
 
-    db.query(query, [orderId], (err, results) => {
+    console.log('Executing order details query:', query);
+    console.log('With parameters:', [seller_id, orderId]);
+
+    db.query(query, [seller_id, orderId], (err, results) => {
       if (err) {
         console.error('Database error:', err);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error', details: err.message });
       }
 
       if (results.length === 0) {
-        return res.status(404).json({ error: 'Order not found' });
+        return res.status(404).json({ error: 'Order not found or does not belong to this seller' });
       }
 
       const order = results[0];
-      res.json(order);
+      
+      try {
+        // Process product details
+        const products = order.product_details ? order.product_details.split(';;').map(product => {
+          const [name, detail, category, subcategory, quantity, price, total] = product.split('|');
+          return {
+            name,
+            description: detail,
+            category,
+            subcategory,
+            quantity: parseInt(quantity),
+            price: parseFloat(price),
+            total: parseFloat(total)
+          };
+        }) : [];
+
+        // Process status history
+        const statusHistory = order.status_history ? order.status_history.split(';;').map(status => {
+          const [newStatus, changedBy, timestamp] = status.split('|');
+          return {
+            status: newStatus,
+            changed_by: changedBy,
+            timestamp: new Date(timestamp)
+          };
+        }) : [];
+
+        // Format the response
+        const formattedOrder = {
+          order_id: order.order_id,
+          order_date: order.order_date,
+          order_status: order.order_status,
+          payment_method: order.payment_method,
+          order_total: parseFloat(order.order_total),
+          customer_name: order.customer_name,
+          phone_number: order.phone_number,
+          delivery_address: order.delivery_address,
+          products: products,
+          status_history: statusHistory
+        };
+
+        console.log('Formatted order:', formattedOrder);
+        res.json(formattedOrder);
+      } catch (error) {
+        console.error('Error processing order data:', error);
+        res.status(500).json({ error: 'Error processing order data', details: error.message });
+      }
     });
   });
 
@@ -326,10 +721,12 @@ router.get("/categories", (req, res) => {
         p.stock,
         p.mrp,
         p.unit,
-        p.shelflife
+        p.shelflife,
+        pi.image_url AS image
       FROM products p
       JOIN product_categories pc ON p.category_id = pc.category_id
       LEFT JOIN product_subcategories psc ON p.subcategory_id = psc.subcategory_id
+      LEFT JOIN product_images pi ON p.product_id = pi.product_id
       WHERE p.seller_id = ?
       ORDER BY p.product_id DESC;
     `;
@@ -451,16 +848,37 @@ router.get("/categories", (req, res) => {
                             console.error("Error updating image:", err);
                             return res.status(500).json({ error: "Database error updating image", details: err.message });
                         }
-                        res.status(200).json({ message: "Product updated successfully with new image", productId });
+                        // Broadcast the update to all connected clients
+                        broadcastUpdate({
+                          type: 'PRODUCT_UPDATED',
+                          data: {
+                            productId,
+                            productName,
+                            price,
+                            category,
+                            image: imagePath
+                          }
+                        });
                     });
                 } else {
-                    res.status(200).json({ message: "Product updated successfully", productId });
+                    // Broadcast the update to all connected clients
+                    broadcastUpdate({
+                      type: 'PRODUCT_UPDATED',
+                      data: {
+                        productId,
+                        productName,
+                        price,
+                        category,
+                        image: null
+                      }
+                    });
                 }
+                res.status(200).json({ message: "Product updated successfully" });
             });
         });
     } catch (error) {
-        console.error("Unexpected error:", error);
-        res.status(500).json({ error: "Unexpected error", details: error.message });
+        console.error("Error in update product route:", error);
+        res.status(500).json({ error: "Internal server error", details: error.message });
     }
 });
 
@@ -471,42 +889,18 @@ router.get("/categories", (req, res) => {
     db.query(deleteQuery, [productId], (err, result) => {
         if (err) {
             console.error("Error deleting product:", err);
-            return res.status(500).json({ error: "Database error deleting product", details: err.message });
+            return res.status(500).json({ error: "Database error deleting product" });
         }
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: "Product not found" });
         }
+        // Broadcast the update to all connected clients
+        broadcastUpdate({
+          type: 'PRODUCT_DELETED',
+          data: { productId }
+        });
         res.status(200).json({ message: "Product deleted successfully" });
     });
-});
-
-// Get all orders for a seller
-router.get("/orders", (req, res) => {
-    const { seller_id } = req.query;
-    const query = `
-      SELECT DISTINCT 
-        o.order_id as id,
-        u.full_name as customer,
-      ua.area as address,
-        o.status,
-        DATE_FORMAT(o.created_at, '%Y-%m-%d %H:%i:%s') as created_at
-      FROM orders o
-      JOIN users u ON o.user_id = u.user_id
-    JOIN user_addresses ua ON u.user_id = ua.user_id
-      JOIN order_items oi ON o.order_id = oi.order_id
-      JOIN products p ON oi.product_id = p.product_id
-      WHERE p.seller_id = ?
-    GROUP BY o.order_id, u.full_name, ua.area, o.status, o.created_at
-      ORDER BY o.created_at DESC
-    `;
-  
-  db.query(query, [seller_id], (err, results) => {
-    if (err) {
-      console.error("Error fetching orders:", err);
-      return res.status(500).json({ error: "Failed to fetch orders" });
-    }
-    res.json(results);
-  });
 });
 
 // Get all users
@@ -1143,6 +1537,140 @@ router.get("/test-connection", (req, res) => {
     }
     console.log("Database connection test successful");
     res.json({ message: "Database connection successful", results });
+  });
+});
+
+// Get addresses for a seller
+router.get("/addresses", (req, res) => {
+  const { seller_id } = req.query;
+  const query = `
+    SELECT DISTINCT ua.address_id, ua.area
+    FROM (
+      SELECT DISTINCT o.address_id
+      FROM orders o
+      JOIN order_items oi ON o.order_id = oi.order_id
+      JOIN products p ON oi.product_id = p.product_id
+      WHERE p.seller_id = ?
+    ) o
+    JOIN user_addresses ua ON o.address_id = ua.address_id
+    ORDER BY ua.area
+  `;
+
+  db.query(query, [seller_id], (err, results) => {
+    if (err) {
+      console.error("Error fetching addresses:", err);
+      return res.status(500).json({ error: "Failed to fetch addresses" });
+    }
+    res.json(results);
+  });
+});
+
+// Test route to manually trigger a notification
+router.get("/test-notification", (req, res) => {
+  const { seller_id } = req.query;
+  
+  if (!seller_id) {
+    return res.status(400).json({ error: "Seller ID is required" });
+  }
+  
+  const testOrder = {
+    order_id: "TEST-" + Date.now(),
+    seller_id: seller_id,
+    customer_name: "Test Customer",
+    area: "Test Area",
+    created_at: new Date()
+  };
+  
+  emitNewOrderNotification(req, testOrder);
+  
+  res.json({ message: "Test notification sent" });
+});
+
+// Get seller earnings
+router.get("/earnings", (req, res) => {
+  const { seller_id, address_id } = req.query;
+  
+  console.log('Fetching earnings for seller:', seller_id, 'address:', address_id);
+  
+  // Base query for earnings using seller_earnings table
+  const baseQuery = `
+    SELECT 
+      se.order_id,
+      o.created_at,
+      COUNT(oi.order_item_id) as items_count,
+      COALESCE(SUM(oi.quantity * oi.price), 0) as total_amount,
+      COALESCE(SUM(oi.quantity * oi.price * 0.1), 0) as commission,
+      se.amount as net_earnings
+    FROM seller_earnings se
+    JOIN orders o ON se.order_id = o.order_id
+    LEFT JOIN order_items oi ON o.order_id = oi.order_id
+    WHERE se.seller_id = ?
+    ${address_id ? 'AND o.address_id = ?' : ''}
+    GROUP BY se.order_id, o.created_at, se.amount
+    ORDER BY o.created_at DESC
+  `;
+  
+  const params = address_id ? [seller_id, address_id] : [seller_id];
+  
+  console.log('Executing query:', baseQuery);
+  console.log('With params:', params);
+  
+  // First, let's check if the seller exists
+  db.query('SELECT seller_id FROM sellers WHERE seller_id = ?', [seller_id], (err, sellerResults) => {
+    if (err) {
+      console.error("Error checking seller:", err);
+      return res.status(500).json({ error: "Failed to check seller" });
+    }
+
+    if (sellerResults.length === 0) {
+      console.log('No seller found with ID:', seller_id);
+      return res.json({ 
+        earnings: [], 
+        summary: {
+          totalEarnings: 0,
+          todayEarnings: 0,
+          weekEarnings: 0,
+          monthEarnings: 0
+        }
+      });
+    }
+
+    // Now fetch the earnings
+  db.query(baseQuery, params, (err, earnings) => {
+    if (err) {
+      console.error("Error fetching earnings:", err);
+      return res.status(500).json({ error: "Failed to fetch earnings" });
+    }
+      
+      console.log('Found earnings:', earnings);
+    
+    // Calculate summary statistics
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const oneWeekAgo = new Date(today);
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    const oneMonthAgo = new Date(today);
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    
+    const summary = {
+        totalEarnings: earnings.reduce((sum, earning) => sum + Number(earning.net_earnings || 0), 0),
+      todayEarnings: earnings
+        .filter(earning => new Date(earning.created_at) >= today)
+          .reduce((sum, earning) => sum + Number(earning.net_earnings || 0), 0),
+      weekEarnings: earnings
+        .filter(earning => new Date(earning.created_at) >= oneWeekAgo)
+          .reduce((sum, earning) => sum + Number(earning.net_earnings || 0), 0),
+      monthEarnings: earnings
+        .filter(earning => new Date(earning.created_at) >= oneMonthAgo)
+          .reduce((sum, earning) => sum + Number(earning.net_earnings || 0), 0)
+    };
+      
+      console.log('Calculated summary:', summary);
+    
+    res.json({ earnings, summary });
+    });
   });
 });
 

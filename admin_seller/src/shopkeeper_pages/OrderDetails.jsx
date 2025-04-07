@@ -1,63 +1,55 @@
-
-
 // shopkeeper_pages/OrderDetails.jsx
 import { useState, useEffect, useContext } from "react";
 import { FiMenu, FiX } from "react-icons/fi";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-// import { UserContext } from "../context/UserContext";
+import { UserContext } from "../context/UserContext";
 
 const OrderDetails = () => {
-  //const { user } = useContext(UserContext);
-  const [menuOpen, setMenuOpen] = useState(false);
   const { orderId } = useParams();
+  const { user } = useContext(UserContext);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const fetchOrderDetails = async () => {
-    try {
-      const response = await axios.get(`http://localhost:5000/api/dashboard/order-details/${orderId}`);
-      setOrder(response.data);
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching order details:", err);
-      setError(err.response?.data?.error || "Failed to load order details.");
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (orderId) fetchOrderDetails();
-  }, [orderId]);
-
-  const handleAccept = async () => {
-    try {
-      const response = await axios.put(`http://localhost:5000/api/dashboard/update-order-status/${orderId}`, {
-        status: "pending",
-      });
-      if (response.data.success) {
-        navigate('/dashboard'); // Redirect to dashboard
-        // Note: Dashboard will refetch data automatically due to useEffect
+    const fetchOrderDetails = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`http://localhost:5000/api/dashboard/order-details/${orderId}`, {
+          params: { seller_id: user?.seller_id }
+        });
+        setOrder(response.data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching order details:', err);
+        setError('Failed to load order details. Please try again.');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Error accepting order:", err);
-      setError(err.response?.data?.error || "Failed to update order status.");
+    };
+
+    if (user?.seller_id) {
+      fetchOrderDetails();
     }
-  };
+  }, [orderId, user?.seller_id]);
 
-  const handleDeny = async () => {
+  const handleUpdateStatus = async (newStatus) => {
     try {
-      const response = await axios.put(`http://localhost:5000/api/dashboard/update-order-status/${orderId}`, {
-        status: "cancelled", // Using "cancelled" as per enum
+      await axios.put(`http://localhost:5000/api/dashboard/update-order-status/${orderId}`, {
+        status: newStatus,
+        seller_id: user?.seller_id
       });
-      if (response.data.success) {
-        navigate('/dashboard'); // Redirect to dashboard
-      }
+      // Refresh order details
+      const response = await axios.get(`http://localhost:5000/api/dashboard/order-details/${orderId}`, {
+        params: { seller_id: user?.seller_id }
+      });
+      setOrder(response.data);
     } catch (err) {
-      console.error("Error denying order:", err);
-      setError(err.response?.data?.error || "Failed to update order status.");
+      console.error('Error updating order status:', err);
+      setError('Failed to update order status. Please try again.');
     }
   };
 
@@ -114,8 +106,27 @@ const OrderDetails = () => {
             <div className="col-span-2"><InfoRow label="Delivery Address" value={order.delivery_address || "N/A"} /></div>
           </div>
           <div className="flex justify-between mt-6">
-            <button onClick={handleAccept} className="bg-green-500 text-white px-5 py-2 rounded-full text-sm transition hover:opacity-80" disabled={order.order_status !== "new"}>Accept</button>
-            <button onClick={handleDeny} className="bg-red-500 text-white px-5 py-2 rounded-full text-sm transition hover:opacity-80" disabled={order.order_status !== "new"}>Deny</button>
+            <button
+              onClick={() => handleUpdateStatus('Processing')}
+              className="bg-blue-500 text-white px-5 py-2 rounded-full text-sm transition hover:opacity-80"
+              disabled={order.order_status === 'Processing' || order.order_status === 'Out For Delivery' || order.order_status === 'Delivered'}
+            >
+              Processing
+            </button>
+            <button
+              onClick={() => handleUpdateStatus('Out For Delivery')}
+              className="bg-yellow-500 text-white px-5 py-2 rounded-full text-sm transition hover:opacity-80"
+              disabled={order.order_status === 'Processing' || order.order_status === 'Out For Delivery' || order.order_status === 'Delivered'}
+            >
+              Out For Delivery
+            </button>
+            <button
+              onClick={() => handleUpdateStatus('Delivered')}
+              className="bg-green-500 text-white px-5 py-2 rounded-full text-sm transition hover:opacity-80"
+              disabled={order.order_status === 'Processing' || order.order_status === 'Out For Delivery' || order.order_status === 'Delivered'}
+            >
+              Delivered
+            </button>
           </div>
         </div>
       </div>

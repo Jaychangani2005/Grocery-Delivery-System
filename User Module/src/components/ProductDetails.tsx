@@ -5,11 +5,14 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Plus, Minus, ShoppingCart } from "lucide-react";
 import CartDrawer from "@/components/CartDrawer";
-import { BestSellerProduct } from "@/components/BestSellerCard";
+import { Product, CartItem, Address } from "@/services/api";
+
+// Constants
+const IMAGE_BASE_URL = 'http://localhost:5000'; // Backend static files server URL
 
 interface ProductDetailsProps {
-  cartItems: BestSellerProduct[];
-  onAddToCart: (product: BestSellerProduct, quantity: number) => void;
+  cartItems: CartItem[];
+  onAddToCart: (product: Product, quantity: number) => void;
   onUpdateCart: (productId: number, quantity: number) => void;
   onRemoveFromCart: (productId: number) => void;
   isCartOpen: boolean;
@@ -19,6 +22,7 @@ interface ProductDetailsProps {
   onLogout: () => void;
   selectedAddress: string;
   onAddressChange: (address: string) => void;
+  addresses: Address[];
 }
 
 const ProductDetails: React.FC<ProductDetailsProps> = ({
@@ -33,9 +37,10 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
   onLogout,
   selectedAddress,
   onAddressChange,
+  addresses,
 }) => {
   const location = useLocation();
-  const product = location.state as BestSellerProduct;
+  const product = location.state as Product;
   const [quantity, setQuantity] = useState(1);
   const [isAddedToCart, setIsAddedToCart] = useState(false);
   const navigate = useNavigate();
@@ -46,7 +51,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
 
   useEffect(() => {
     // Check if product is in cart
-    const cartItem = cartItems.find((item) => item.id === product.id);
+    const cartItem = cartItems.find((item) => item.productId === product.id);
     if (cartItem) {
       setIsAddedToCart(true);
       setQuantity(cartItem.quantity || 1);
@@ -91,6 +96,15 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
     toggleCart();
   };
 
+  const getImageUrl = (imagePath: string) => {
+    // If the image path is a full URL, use it as is
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    // If it's a relative path, append it to the base URL
+    return `${IMAGE_BASE_URL}${imagePath}`;
+  };
+
   return (
     <div className="pt-16">
       <Navbar
@@ -108,7 +122,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
           {/* Product Image */}
           <div className="flex justify-center">
             <img
-              src={product.image}
+              src={getImageUrl(product.image)}
               alt={product.name}
               className="rounded-lg w-full max-w-md object-cover aspect-square"
             />
@@ -151,12 +165,11 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
               <div className="flex flex-col gap-1 text-sm text-gray-600">
                 {(product.weight || product.unit) && (
                   <div>
-                    {product.weight && (
+                    {product.weight ? (
                       <span>{product.weight}</span>
-                    )}
-                    {!product.weight && product.unit && (
+                    ) : product.unit ? (
                       <span>Sold per {product.unit}</span>
-                    )}
+                    ) : null}
                   </div>
                 )}
                 {product.shelfLife && (
@@ -221,7 +234,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
         isLoggedIn={isLoggedIn}
         onLoginClick={() => navigate('/auth')}
         onPlaceOrder={() => {}}
-        addresses={[]}
+        addresses={addresses}
         onAddressChange={onAddressChange}
       />
     </div>

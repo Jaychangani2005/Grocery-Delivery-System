@@ -8,7 +8,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { authService } from "@/services/auth";
 
 interface AuthProps {
-  onLogin: (userData: { name: string; email: string }) => void;
+  onLogin: (userData: { id: number; name: string; email: string }) => void;
   isLoggedIn: boolean;
 }
 
@@ -65,11 +65,8 @@ const Auth = ({ onLogin, isLoggedIn }: AuthProps) => {
       localStorage.setItem("user", JSON.stringify(response.user));
       localStorage.setItem("isLoggedIn", "true");
       
-      // Call the onLogin callback with user data
-      onLogin({
-        name: response.user.name,
-        email: response.user.email,
-      });
+      // Call the onLogin callback with complete user data including id
+      onLogin(response.user);
 
       toast({
         title: "Success!",

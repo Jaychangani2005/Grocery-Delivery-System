@@ -254,6 +254,7 @@ const Addresses: React.FC<AddressesProps> = ({
         description: "Address added successfully",
       });
       fetchAddresses();
+      setIsDialogOpen(false);
     } catch (error) {
       console.error('Error adding address:', error);
       toast({
@@ -274,6 +275,7 @@ const Addresses: React.FC<AddressesProps> = ({
       });
       fetchAddresses();
       setSelectedAddressForEdit(undefined);
+      setIsDialogOpen(false);
     } catch (error) {
       console.error('Error updating address:', error);
       toast({
@@ -313,6 +315,11 @@ const Addresses: React.FC<AddressesProps> = ({
     }
   };
 
+  const handleDialogClose = () => {
+    setIsDialogOpen(false);
+    setSelectedAddressForEdit(undefined);
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar
@@ -342,11 +349,12 @@ const Addresses: React.FC<AddressesProps> = ({
               </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                  <DialogTitle>Add New Address</DialogTitle>
+                  <DialogTitle>{selectedAddressForEdit ? 'Edit Address' : 'Add New Address'}</DialogTitle>
                 </DialogHeader>
                 <AddressForm 
-                  onClose={() => setIsDialogOpen(false)} 
-                  onSubmit={handleAddAddress}
+                  onClose={handleDialogClose} 
+                  address={selectedAddressForEdit}
+                  onSubmit={selectedAddressForEdit ? handleUpdateAddress : handleAddAddress}
                 />
               </DialogContent>
             </Dialog>

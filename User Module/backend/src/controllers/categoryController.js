@@ -1,27 +1,54 @@
 const pool = require('../config/db');
+const path = require('path');
+const fs = require('fs');
 
 const getAllCategories = async (req, res) => {
   try {
     const [categories] = await pool.query(`
       SELECT 
-        pc.*,
-        (
-          SELECT pi.image_url
-          FROM products p
-          JOIN product_images pi ON p.product_id = pi.product_id
-          WHERE p.category_id = pc.category_id
-          LIMIT 1
-        ) as image_url
+        pc.category_id as id,
+        pc.name,
+        pc.admin_id as adminId,
+        pc.image_url as image
       FROM product_categories pc
     `);
 
+    console.log('Raw categories from DB:', JSON.stringify(categories, null, 2));
+
     // Format the response
-    const formattedCategories = categories.map(category => ({
-      id: category.category_id,
-      name: category.name,
-      adminId: category.admin_id,
-      image: category.image_url || `/images/${category.name.toLowerCase().replace(/\s+/g, '-')}.jpg`
-    }));
+    const formattedCategories = categories.map(category => {
+      // Get the image filename from the database
+      const imageFilename = category.image || '';
+      
+      // Remove leading slash if present and get the filename
+      const cleanImagePath = imageFilename.startsWith('/') ? imageFilename.substring(1) : imageFilename;
+      const imageName = cleanImagePath.split('/').pop() || '';
+      
+      // Convert filename to match the actual file in the filesystem
+      // Replace underscores with spaces and capitalize first letters
+      const formattedImageName = imageName
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join('_');
+      
+      // Construct the full image path using admin-seller backend URL
+      const imageUrl = imageName 
+        ? `http://localhost:5000/images/category/${formattedImageName}`
+        : `http://localhost:3000/images/placeholder.svg`;
+      
+      console.log('Processing category:', {
+        name: category.name,
+        originalImage: category.image,
+        finalImagePath: imageUrl
+      });
+      
+      return {
+        id: category.id,
+        name: category.name,
+        adminId: category.adminId,
+        image: imageUrl
+      };
+    });
 
     res.json(formattedCategories);
   } catch (error) {
@@ -35,14 +62,10 @@ const getCategoryById = async (req, res) => {
     const { id } = req.params;
     const [categories] = await pool.query(`
       SELECT 
-        pc.*,
-        (
-          SELECT pi.image_url
-          FROM products p
-          JOIN product_images pi ON p.product_id = pi.product_id
-          WHERE p.category_id = pc.category_id
-          LIMIT 1
-        ) as image_url
+        pc.category_id as id,
+        pc.name,
+        pc.admin_id as adminId,
+        pc.image_url as image
       FROM product_categories pc
       WHERE pc.category_id = ?
     `, [id]);
@@ -51,12 +74,37 @@ const getCategoryById = async (req, res) => {
       return res.status(404).json({ error: 'Category not found' });
     }
     
+    // Get the image filename from the database
+    const imageFilename = categories[0].image || '';
+    
+    // Remove leading slash if present and get the filename
+    const cleanImagePath = imageFilename.startsWith('/') ? imageFilename.substring(1) : imageFilename;
+    const imageName = cleanImagePath.split('/').pop() || '';
+    
+    // Convert filename to match the actual file in the filesystem
+    // Replace underscores with spaces and capitalize first letters
+    const formattedImageName = imageName
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join('_');
+    
+    // Construct the full image path using admin-seller backend URL
+    const imageUrl = imageName 
+      ? `http://localhost:5000/images/category/${formattedImageName}`
+      : `http://localhost:3000/images/placeholder.svg`;
+    
+    console.log('Processing category:', {
+      name: categories[0].name,
+      originalImage: categories[0].image,
+      finalImagePath: imageUrl
+    });
+    
     // Format the response
     const category = {
-      id: categories[0].category_id,
+      id: categories[0].id,
       name: categories[0].name,
-      adminId: categories[0].admin_id,
-      image: categories[0].image_url || `/images/${categories[0].name.toLowerCase().replace(/\s+/g, '-')}.jpg`
+      adminId: categories[0].adminId,
+      image: imageUrl
     };
     
     res.json(category);

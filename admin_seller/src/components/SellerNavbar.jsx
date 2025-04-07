@@ -234,11 +234,20 @@
 // src/components/SellerNavbar.jsx
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { FiMenu, FiX, FiUser } from "react-icons/fi";
+import { FiMenu, FiX, FiUser, FiHome, FiShoppingBag, FiDollarSign, FiPackage, FiSettings } from "react-icons/fi";
+
+const navigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: FiHome },
+  { name: 'Orders', href: '/orders', icon: FiShoppingBag },
+  { name: 'Earnings', href: '/earnings', icon: FiDollarSign },
+  { name: 'Products', href: '/products', icon: FiPackage },
+  { name: 'Settings', href: '/settings', icon: FiSettings },
+];
 
 const SellerNavbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const location = useLocation();
 
   return (
     <nav className="fixed top-0 left-0 w-full bg-white shadow-md z-20 p-4 flex justify-between items-center">
@@ -247,9 +256,14 @@ const SellerNavbar = () => {
 
       {/* Desktop Menu */}
       <div className="hidden md:flex space-x-6 items-center">
-        <NavItem to="/dashboard" text="Dashboard" />
-        <NavItem to="/products" text="Product Management" />
-        <NavItem to="/orders" text="Order Management" />
+        {navigation.map((item) => (
+          <NavItem 
+            key={item.href}
+            to={item.href} 
+            text={item.name} 
+            icon={item.icon}
+          />
+        ))}
 
         {/* Profile Dropdown */}
         <div className="relative">
@@ -302,9 +316,14 @@ const SellerNavbar = () => {
       {/* Mobile Dropdown Menu */}
       {menuOpen && (
         <div className="md:hidden absolute top-14 left-0 w-full bg-white shadow-md p-4">
-          <NavItem to="/dashboard" text="Dashboard" />
-          <NavItem to="/products" text="Product Management" />
-          <NavItem to="/orders" text="Order Management" />
+          {navigation.map((item) => (
+            <NavItem 
+              key={item.href}
+              to={item.href} 
+              text={item.name} 
+              icon={item.icon}
+            />
+          ))}
 
           {/* Mobile Profile Dropdown */}
           <div className="mt-4">
@@ -343,17 +362,18 @@ const SellerNavbar = () => {
 };
 
 // Reusable NavItem Component
-const NavItem = ({ to, text }) => {
+const NavItem = ({ to, text, icon: Icon }) => {
   const location = useLocation();
   const isActive = location.pathname === to;
 
   return (
     <Link
       to={to}
-      className={`block px-4 py-2 text-sm font-medium ${
+      className={`flex items-center px-4 py-2 text-sm font-medium ${
         isActive ? "text-orange-500" : "text-gray-600"
       } hover:text-orange-600`}
     >
+      <Icon className="mr-2" size={18} />
       {text}
     </Link>
   );

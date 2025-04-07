@@ -6,6 +6,9 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "./ui/badge";
 import { Product } from "@/services/api";
 
+// Constants
+const IMAGE_BASE_URL = 'http://localhost:5000'; // Backend static files server URL
+
 interface BestSellerCardProps {
   product: Product;
   onAddToCart: (product: Product, quantity: number) => void;
@@ -28,6 +31,7 @@ const BestSellerCard = ({
   const [quantity, setQuantity] = useState(isInCart ? cartQuantity : 1);
   const [isAddedToCart, setIsAddedToCart] = useState(isInCart);
   const [loaded, setLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -78,6 +82,13 @@ const BestSellerCard = ({
     });
   };
 
+  const getImageUrl = (imagePath: string) => {
+    if (!imagePath) return "https://placehold.co/300x300/e2e8f0/1e293b?text=No+Image";
+    if (imagePath.startsWith('http')) return imagePath;
+    // If the image path is relative, prepend the backend URL
+    return `http://localhost:5000${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
+  };
+
   return (
     <div
       className={cn(
@@ -88,12 +99,19 @@ const BestSellerCard = ({
     >
       <div className="relative">
         <div className="relative aspect-square overflow-hidden">
-          <img
-            src={`http://localhost:5000${product.image}`}
-            alt={product.name}
-            className="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-300"
-            onLoad={() => setLoaded(true)}
-          />
+          {!imageError ? (
+            <img
+              src={getImageUrl(product.image)}
+              alt={product.name}
+              className="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-300"
+              onLoad={() => setLoaded(true)}
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700">
+              <span className="text-gray-400 dark:text-gray-500 text-sm">Image not available</span>
+            </div>
+          )}
         </div>
         {product.oldPrice && (
           <Badge className="absolute top-2 left-2 bg-red-500 text-white border-none text-xs font-medium px-2 py-0.5">

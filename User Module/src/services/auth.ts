@@ -34,8 +34,10 @@ export const authService = {
       
       const mockToken = 'mock-jwt-token-' + Date.now();
       
-      // Store token in localStorage
+      // Store token and user in localStorage
       localStorage.setItem('token', mockToken);
+      localStorage.setItem('user', JSON.stringify(mockUser));
+      localStorage.setItem('isLoggedIn', 'true');
       
       return {
         user: mockUser,

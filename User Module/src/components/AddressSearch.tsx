@@ -2,9 +2,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { Command } from "cmdk";
 import {
   MapPin,
-  Loader2,
-  Navigation,
-  CheckCircle2,
   ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,99 +11,63 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { useToast } from "./ui/use-toast";
-
-interface Address {
-  id: string;
-  mainText: string;
-  secondaryText: string;
-  fullAddress: string;
-}
+import { userService, Address } from "@/services/api";
+import { toast } from "react-hot-toast";
 
 interface AddressSearchProps {
   selectedAddress: string;
   onAddressChange: (address: string) => void;
 }
 
-// Mock data for address suggestions
-const mockAddressSuggestions: Address[] = [
-  {
-    id: "1",
-    mainText: "Bandra West",
-    secondaryText: "Mumbai, Maharashtra",
-    fullAddress: "Bandra West, Mumbai, Maharashtra - 400050",
-  },
-  {
-    id: "2",
-    mainText: "Andheri East",
-    secondaryText: "Mumbai, Maharashtra",
-    fullAddress: "Andheri East, Mumbai, Maharashtra - 400069",
-  },
-  {
-    id: "3",
-    mainText: "Powai",
-    secondaryText: "Mumbai, Maharashtra",
-    fullAddress: "Powai, Mumbai, Maharashtra - 400076",
-  },
-];
-
 const AddressSearch: React.FC<AddressSearchProps> = ({
   selectedAddress,
   onAddressChange,
 }) => {
-  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  const [suggestions, setSuggestions] = useState<Address[]>([]);
-  const [isDetecting, setIsDetecting] = useState(false);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [filteredAddresses, setFilteredAddresses] = useState<Address[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch user addresses when component mounts
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      try {
+        const userAddresses = await userService.getAddresses();
+        setAddresses(userAddresses);
+      } catch (error) {
+        console.error('Error fetching addresses:', error);
+        toast.error('Failed to load addresses');
+      }
+    };
+
+    fetchAddresses();
+  }, []);
+
+  // Filter addresses based on input
   useEffect(() => {
     if (inputValue.length >= 3) {
-      // Simulate API call for address suggestions
-      const filteredSuggestions = mockAddressSuggestions.filter(
+      const filtered = addresses.filter(
         (address) =>
-          address.mainText.toLowerCase().includes(inputValue.toLowerCase()) ||
-          address.secondaryText.toLowerCase().includes(inputValue.toLowerCase())
+          address.area.toLowerCase().includes(inputValue.toLowerCase()) ||
+          address.city.toLowerCase().includes(inputValue.toLowerCase()) ||
+          address.street.toLowerCase().includes(inputValue.toLowerCase())
       );
-      setSuggestions(filteredSuggestions);
+      setFilteredAddresses(filtered);
     } else {
-      setSuggestions([]);
+      setFilteredAddresses([]);
     }
-  }, [inputValue]);
+  }, [inputValue, addresses]);
 
-  const handleDetectLocation = async () => {
-    setIsDetecting(true);
-    try {
-      if ("geolocation" in navigator) {
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject);
-        });
+  const formatAddress = (address: Address): string => {
+    return `${address.house_no}${address.building_name ? `, ${address.building_name}` : ''}, ${address.street}, ${address.area}, ${address.city}, ${address.state} - ${address.pincode}`;
+  };
 
-        // Simulate reverse geocoding with a delay
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        
-        // Mock detected address
-        const detectedAddress = "Detected: Mumbai, Maharashtra - 400001";
-        onAddressChange(detectedAddress);
+  const handleAddressSelect = (address: Address) => {
+    const formattedAddress = formatAddress(address);
+    onAddressChange(formattedAddress);
         setOpen(false);
-        
-        toast({
-          title: "Location detected",
-          description: "Your location has been successfully detected.",
-        });
-      } else {
-        throw new Error("Geolocation is not supported");
-      }
-    } catch (error) {
-      toast({
-        title: "Location detection failed",
-        description: "Please enter your address manually or try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDetecting(false);
-    }
+    setInputValue("");
   };
 
   return (
@@ -121,7 +82,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
           <div className="flex items-center gap-2 truncate">
             <MapPin className="h-4 w-4 text-primary shrink-0" />
             <span className="truncate">
-              {selectedAddress || "Select location"}
+              {selectedAddress || "Select address"}
             </span>
           </div>
           <ChevronRight className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -135,67 +96,61 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
               ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Enter your location..."
+              placeholder="Search your addresses..."
               className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
-          <div className="p-2">
+          <div className="max-h-[300px] overflow-auto p-2">
+            {addresses.length === 0 ? (
+              <div className="p-4 text-sm text-muted-foreground text-center">
+                No saved addresses found
+              </div>
+            ) : inputValue.length >= 3 ? (
+              filteredAddresses.length > 0 ? (
+                filteredAddresses.map((address) => (
             <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start gap-2"
-              onClick={handleDetectLocation}
-              disabled={isDetecting}
-            >
-              {isDetecting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Detecting location...</span>
-                </>
+                    key={address.address_id}
+                    variant="ghost"
+                    className="w-full justify-start gap-2 px-2 py-1.5"
+                    onClick={() => handleAddressSelect(address)}
+                  >
+                    <MapPin className="h-4 w-4 text-primary" />
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm font-medium">
+                        {address.address_type} - {address.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatAddress(address)}
+                      </span>
+                    </div>
+                  </Button>
+                ))
               ) : (
-                <>
-                  <Navigation className="h-4 w-4" />
-                  <span>Detect my location</span>
-                </>
-              )}
-            </Button>
+                <div className="p-4 text-sm text-muted-foreground text-center">
+                  No matching addresses found
           </div>
-          {suggestions.length > 0 && (
-            <div className="max-h-[300px] overflow-auto p-2">
-              {suggestions.map((address) => (
+              )
+            ) : (
+              addresses.map((address) => (
                 <Button
-                  key={address.id}
+                  key={address.address_id}
                   variant="ghost"
                   className="w-full justify-start gap-2 px-2 py-1.5"
-                  onClick={() => {
-                    onAddressChange(address.fullAddress);
-                    setOpen(false);
-                    setInputValue("");
-                  }}
+                  onClick={() => handleAddressSelect(address)}
                 >
                   <MapPin className="h-4 w-4 text-primary" />
                   <div className="flex flex-col items-start">
                     <span className="text-sm font-medium">
-                      {address.mainText}
+                      {address.address_type} - {address.name}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {address.secondaryText}
+                      {formatAddress(address)}
                     </span>
                   </div>
                 </Button>
-              ))}
+              ))
+            )}
             </div>
-          )}
-          {inputValue.length >= 3 && suggestions.length === 0 && (
-            <div className="p-4 text-sm text-muted-foreground text-center">
-              No locations found
-            </div>
-          )}
-          {inputValue.length > 0 && inputValue.length < 3 && (
-            <div className="p-4 text-sm text-muted-foreground text-center">
-              Type at least 3 characters to search
-            </div>
-          )}
         </Command>
       </PopoverContent>
     </Popover>

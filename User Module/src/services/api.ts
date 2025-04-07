@@ -9,12 +9,15 @@ export interface Product {
   description: string;
   price: number;
   oldPrice: number;
-  image: string;
+  image?: string;
+  image_url?: string;
   category: string;
   rating: number;
   isOrganic: boolean;
   unit: string;
   stock: number;
+  weight?: string;
+  shelfLife?: string;
 }
 
 export interface Category {
@@ -37,9 +40,9 @@ export interface Order {
   userId: number;
   total: number;
   status: 'new' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled' | 'Out For delivery';
-  paymentMethod: 'cod' | 'online';
-  createdAt: string;
   items: CartItem[];
+  createdAt: string;
+  paymentMethod?: string;
 }
 
 export interface UserAddress {
@@ -67,8 +70,20 @@ export interface Address {
   landmark?: string;
 }
 
+export interface PlaceOrderData {
+  userId: number;
+  items: CartItem[];
+  addressId: number;
+  paymentMethod: string;
+  total: number;
+}
+
 interface ApiError {
   error: string;
+}
+
+interface OrdersResponse {
+  orders?: Order[];
 }
 
 const API_BASE_URL = 'http://localhost:3000/api';
@@ -77,7 +92,9 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json'
   },
+  timeout: 10000 // 10 seconds timeout
 });
 
 // Add auth token to requests if available
@@ -193,13 +210,21 @@ export const productService = {
   // Get products by category
   getProductsByCategory: async (categoryIdOrName: number | string): Promise<Product[]> => {
     try {
-    console.log('Fetching products for category:', categoryIdOrName);
+      console.log('Fetching products for category:', categoryIdOrName);
       
       // Try to fetch from API first
       try {
-    const response = await api.get<Product[]>(`/products/category/${encodeURIComponent(String(categoryIdOrName).toLowerCase())}`);
+        // If category is "all", fetch all products
+        if (categoryIdOrName === 'all') {
+          const response = await api.get<Product[]>('/products');
+          console.log('All products fetched successfully:', response.data);
+          return response.data;
+        }
+        
+        // Otherwise fetch products for specific category
+        const response = await api.get<Product[]>(`/products/category/${encodeURIComponent(String(categoryIdOrName).toLowerCase())}`);
         console.log('Products fetched successfully:', response.data);
-    return response.data;
+        return response.data;
       } catch (apiError) {
         console.log('API error, using mock data:', apiError);
         
@@ -272,7 +297,12 @@ export const productService = {
           }
         ];
         
-        // Filter products by category
+        // If category is "all", return all mock products
+        if (categoryIdOrName === 'all') {
+          return mockProducts;
+        }
+        
+        // Otherwise filter products by category
         const categoryName = String(categoryIdOrName).toLowerCase();
         const filteredProducts = mockProducts.filter(
           product => product.category.toLowerCase() === categoryName
@@ -404,8 +434,133 @@ export const productService = {
 
   // Search products
   searchProducts: async (query: string): Promise<Product[]> => {
-    const response = await api.get<Product[]>(`/products/search?q=${encodeURIComponent(query)}`);
-    return response.data;
+    try {
+      console.log('Searching products with query:', query);
+      
+      // Try to fetch from API first
+      try {
+        const response = await api.get<Product[]>(`/products/search?q=${encodeURIComponent(query.trim())}`);
+        console.log('Search results from API:', response.data);
+        
+        // Ensure we have an array of products
+        if (Array.isArray(response.data)) {
+          return response.data;
+        } else {
+          console.warn('API returned non-array data:', response.data);
+          throw new Error('Invalid response format');
+        }
+      } catch (apiError) {
+        console.log('API error, using mock data:', apiError);
+        
+        // If API fails, use mock data with improved search filtering
+        const mockProducts: Product[] = [
+          {
+            id: 1,
+            name: "Organic Apples",
+            description: "Fresh from Kashmir",
+            price: 150.00,
+            oldPrice: 180.00,
+            image: "/images/products/apples.jpg",
+            category: "Fruits",
+            rating: 4.5,
+            isOrganic: true,
+            unit: "1kg",
+            stock: 50
+          },
+          {
+            id: 2,
+            name: "Amul Butter",
+            description: "Salted 500g",
+            price: 250.00,
+            oldPrice: 280.00,
+            image: "/images/products/butter.jpg",
+            category: "Dairy",
+            rating: 4.2,
+            isOrganic: false,
+            unit: "500g",
+            stock: 30
+          },
+          {
+            id: 3,
+            name: "Basmati Rice",
+            description: "Extra long grain",
+            price: 600.00,
+            oldPrice: 650.00,
+            image: "/images/products/rice.jpg",
+            category: "Grains",
+            rating: 4.7,
+            isOrganic: false,
+            unit: "5kg",
+            stock: 20
+          },
+          {
+            id: 4,
+            name: "Fresh Tomatoes",
+            description: "Locally grown",
+            price: 80.00,
+            oldPrice: 100.00,
+            image: "/images/products/tomatoes.jpg",
+            category: "Vegetables",
+            rating: 4.0,
+            isOrganic: true,
+            unit: "1kg",
+            stock: 40
+          },
+          {
+            id: 5,
+            name: "Whole Wheat Bread",
+            description: "Freshly baked",
+            price: 60.00,
+            oldPrice: 70.00,
+            image: "/images/products/bread.jpg",
+            category: "Bakery",
+            rating: 4.3,
+            isOrganic: false,
+            unit: "400g",
+            stock: 25
+          }
+        ];
+        
+        // Filter mock products based on search query with improved matching
+        const searchTerm = query.toLowerCase().trim();
+        console.log('Filtering mock products with search term:', searchTerm);
+        
+        const getRelevanceScore = (product: Product): number => {
+          const name = product.name.toLowerCase();
+          const desc = product.description.toLowerCase();
+          const category = product.category.toLowerCase();
+          
+          if (name === searchTerm) return 10;
+          if (name.includes(` ${searchTerm} `)) return 8;
+          if (name.startsWith(`${searchTerm} `)) return 7;
+          if (name.endsWith(` ${searchTerm}`)) return 7;
+          if (name.includes(searchTerm)) return 5;
+          if (desc.includes(searchTerm)) return 3;
+          if (category.includes(searchTerm)) return 1;
+          return 0;
+        };
+        
+        const filteredProducts = mockProducts
+          .map(product => ({
+            ...product,
+            relevance: getRelevanceScore(product)
+          }))
+          .filter(product => product.relevance > 0)
+          .sort((a, b) => {
+            if (a.relevance !== b.relevance) {
+              return b.relevance - a.relevance;
+            }
+            return b.rating - a.rating;
+          })
+          .map(({ relevance, ...product }) => product);
+        
+        console.log(`Found ${filteredProducts.length} mock products matching "${query}"`);
+        return filteredProducts;
+      }
+    } catch (error) {
+      console.error('Error in searchProducts:', error);
+      return []; // Return empty array if both API and mock data fail
+    }
   },
 
   // Get product by ID
@@ -687,13 +842,27 @@ export const cartService = {
         throw new Error('User must be logged in to place order');
       }
 
+      // Get the current user from localStorage
+      const userStr = localStorage.getItem('user');
+      if (!userStr) {
+        throw new Error('User data not found. Please log in again.');
+      }
+
+      const user = JSON.parse(userStr);
+      if (!user || !user.id) {
+        throw new Error('User ID not found. Please log in again.');
+      }
+
       const response = await fetch(`${API_BASE_URL}/orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ addressId })
+        body: JSON.stringify({ 
+          addressId,
+          userId: user.id 
+        })
       });
 
       if (!response.ok) {
@@ -738,6 +907,78 @@ export const userService = {
     const response = await api.delete(`/addresses/${addressId}`);
     return response.data;
   },
+};
+
+export const orderService = {
+  placeOrder: async (orderData: PlaceOrderData) => {
+    try {
+      console.log('Placing order with data:', orderData);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      const response = await api.post('/orders', {
+        ...orderData,
+        paymentMethod: orderData.paymentMethod || 'cod',
+        status: 'new'
+      });
+
+      console.log('Order placed successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error placing order:', error);
+      throw error;
+    }
+  },
+
+  getOrders: async (): Promise<Order[]> => {
+    try {
+      console.log('Fetching orders...');
+      const token = localStorage.getItem('token');
+      const userStr = localStorage.getItem('user');
+      const userData = userStr ? JSON.parse(userStr) : null;
+      
+      if (!token) {
+        console.warn('No authentication token found');
+        throw new Error('Authentication token is required');
+      }
+
+      if (!userData?.id) {
+        console.warn('No user data found');
+        throw new Error('User data is missing');
+      }
+
+      console.log('Fetching orders with auth token for user:', userData.id);
+      
+      const response = await api.get<{orders: Order[]}>('/orders', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        params: {
+          userId: userData.id
+        }
+      });
+
+      if (!response.data) {
+        console.warn('No response data found');
+        return [];
+      }
+
+      // Handle both {orders: []} and direct array response formats
+      const orders = Array.isArray(response.data) 
+        ? response.data 
+        : response.data.orders || [];
+
+      console.log('Orders fetched successfully:', orders);
+      return orders;
+
+    } catch (error) {
+      console.error('Error in getOrders:', error);
+      throw error;
+    }
+  }
 };
 
 export default api; 

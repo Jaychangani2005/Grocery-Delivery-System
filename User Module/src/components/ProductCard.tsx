@@ -3,10 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { Plus, Minus, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { BestSellerProduct } from "./BestSellerCard";
+import { Product } from "@/services/api";
 
-export interface ProductProps extends BestSellerProduct {
-  onAddToCart: (product: BestSellerProduct, quantity: number) => void;
+interface ProductProps {
+  product: Product;
+  onAddToCart: (product: Product, quantity: number) => void;
   onUpdateCart: (productId: number, quantity: number) => void;
   onRemoveFromCart: (productId: number) => void;
   toggleCart: () => void;
@@ -15,20 +16,7 @@ export interface ProductProps extends BestSellerProduct {
 }
 
 const ProductCard = ({
-  id,
-  name,
-  description,
-  price,
-  oldPrice,
-  image,
-  category,
-  inStock = true,
-  unit = "each",
-  weight,
-  origin,
-  shelfLife,
-  isOrganic,
-  rating,
+  product,
   onAddToCart,
   onUpdateCart,
   onRemoveFromCart,
@@ -54,23 +42,6 @@ const ProductCard = ({
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const product: BestSellerProduct = {
-      id,
-      name,
-      description,
-      price,
-      oldPrice,
-      image,
-      category,
-      inStock,
-      unit,
-      weight,
-      origin,
-      shelfLife,
-      isOrganic,
-      rating,
-      quantity: 1
-    };
     onAddToCart(product, 1);
     setIsAddedToCart(true);
     toggleCart();
@@ -80,41 +51,33 @@ const ProductCard = ({
     e.stopPropagation();
     const newQuantity = Math.min(quantity + 1, 10);
     setQuantity(newQuantity);
-    onUpdateCart(id, newQuantity);
+    onUpdateCart(product.id, newQuantity);
   };
 
   const handleDecrementQuantity = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (quantity <= 1) {
-      onRemoveFromCart(id);
+      onRemoveFromCart(product.id);
       setIsAddedToCart(false);
       setQuantity(1);
     } else {
       const newQuantity = quantity - 1;
       setQuantity(newQuantity);
-      onUpdateCart(id, newQuantity);
+      onUpdateCart(product.id, newQuantity);
     }
   };
 
   const handleCardClick = () => {
-    navigate(`/product/${id}`, {
-      state: {
-        id,
-        name,
-        description,
-        price,
-        oldPrice,
-        image,
-        category,
-        inStock,
-        unit,
-        weight,
-        origin,
-        shelfLife,
-        isOrganic,
-        rating
-      },
+    navigate(`/product/${product.id}`, {
+      state: product,
     });
+  };
+
+  const getImageUrl = (imagePath: string) => {
+    if (!imagePath) return "https://placehold.co/300x300/e2e8f0/1e293b?text=No+Image";
+    if (imagePath.startsWith('http')) return imagePath;
+    // If the image path is relative, prepend the backend URL
+    return `http://localhost:5000${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
   };
 
   return (
@@ -128,8 +91,8 @@ const ProductCard = ({
       <div className="relative">
         <div className="relative aspect-square overflow-hidden">
           <img
-            src={image}
-            alt={name}
+            src={getImageUrl(product.image)}
+            alt={product.name}
             className="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-300"
             onLoad={() => setLoaded(true)}
           />
@@ -138,17 +101,17 @@ const ProductCard = ({
 
       <div className="p-3">
         <h3 className="font-medium text-xs sm:text-sm mt-1 mb-1 truncate">
-          {name}
+          {product.name}
         </h3>
 
-        {description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
+        {product.description && (
+          <p className="text-xs text-muted-foreground">{product.description}</p>
         )}
 
         <div className="flex items-center gap-2 mb-3">
-          <span className="font-bold text-xs sm:text-sm">₹{price.toFixed(2)}</span>
-          {oldPrice && (
-            <span className="text-xs text-gray-500 line-through">₹{oldPrice.toFixed(2)}</span>
+          <span className="font-bold text-xs sm:text-sm">₹{product.price.toFixed(2)}</span>
+          {product.oldPrice && (
+            <span className="text-xs text-gray-500 line-through">₹{product.oldPrice.toFixed(2)}</span>
           )}
         </div>
 
@@ -169,10 +132,10 @@ const ProductCard = ({
             size="sm"
             className="rounded-md h-8 text-xs w-full transition-all"
             onClick={handleAddToCart}
-            disabled={!inStock}
+            disabled={!product.stock}
           >
             <ShoppingCart className="h-4 w-4 mr-1" />
-            {inStock ? "Add to Cart" : "Out of Stock"}
+            {product.stock ? "Add to Cart" : "Out of Stock"}
           </Button>
         )}
       </div>

@@ -72,6 +72,13 @@ const FeaturedProductCard = ({
     });
   };
 
+  const getImageUrl = (imagePath: string) => {
+    if (!imagePath) return "https://placehold.co/300x300/e2e8f0/1e293b?text=No+Image";
+    if (imagePath.startsWith('http')) return imagePath;
+    // If the image path is relative, prepend the backend URL
+    return `http://localhost:5000${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
+  };
+
   return (
     <div
       className={cn(
@@ -82,11 +89,7 @@ const FeaturedProductCard = ({
       <div className="relative">
         <div className="relative aspect-square overflow-hidden">
           <img
-            src={
-              !imageError && product.image
-                ? product.image
-                : "https://via.placeholder.com/300?text=No+Image"
-            }
+            src={getImageUrl(product.image)}
             alt={product.name}
             className="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-300"
             onError={() => setImageError(true)}

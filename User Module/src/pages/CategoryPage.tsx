@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import { Product } from "@/services/api";
+import { useParams, useSearchParams } from "react-router-dom";
+import { Product, productService } from "@/services/api";
 import BestSellerCard from "@/components/BestSellerCard";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -41,6 +41,8 @@ const CategoryPage = ({
   onPlaceOrder,
 }: CategoryPageProps) => {
   const { category } = useParams<{ category: string }>();
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get('search');
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -48,11 +50,27 @@ const CategoryPage = ({
     const fetchProducts = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(`http://localhost:3000/api/products/category/${category}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch products');
+        let data: Product[] = [];
+
+        if (searchQuery) {
+          // If there's a search query, use the search API
+          data = await productService.searchProducts(searchQuery);
+        } else if (category && category !== 'all') {
+          // If there's a category (and it's not 'all'), fetch by category
+          const response = await fetch(`http://localhost:3000/api/products/category/${category}`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch products');
+          }
+          data = await response.json();
+        } else {
+          // If no search query and no specific category (or 'all'), fetch all products
+          const response = await fetch('http://localhost:3000/api/products');
+          if (!response.ok) {
+            throw new Error('Failed to fetch products');
+          }
+          data = await response.json();
         }
-        const data = await response.json();
+
         setProducts(data);
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -61,14 +79,22 @@ const CategoryPage = ({
       }
     };
 
-    if (category) {
-      fetchProducts();
-    }
-  }, [category]);
+    fetchProducts();
+  }, [category, searchQuery]);
 
-  const formattedCategoryName = category ? category.split('-').map(word => 
-    word.charAt(0).toUpperCase() + word.slice(1)
-  ).join(' ') : '';
+  const getPageTitle = () => {
+    if (searchQuery) {
+      return `Search Results for "${searchQuery}"`;
+    }
+    if (category === 'all') {
+      return 'All Products';
+    }
+    return category ? category.split('-').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ') : '';
+  };
+
+  const pageTitle = getPageTitle();
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -89,12 +115,12 @@ const CategoryPage = ({
               <BreadcrumbLink href="/">Home</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbItem>
-              <BreadcrumbPage>{formattedCategoryName}</BreadcrumbPage>
+              <BreadcrumbPage>{pageTitle}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
 
-        <h1 className="text-3xl font-bold mt-6 mb-8">{formattedCategoryName}</h1>
+        <h1 className="text-3xl font-bold mt-6 mb-8">{pageTitle}</h1>
 
         {isLoading ? (
           <div className="flex items-center justify-center min-h-[400px]">
@@ -117,7 +143,11 @@ const CategoryPage = ({
           </div>
         ) : (
           <div className="text-center py-12">
-            <p className="text-lg text-gray-600">No products found in this category.</p>
+            <p className="text-lg text-gray-600">
+              {searchQuery 
+                ? `No products found matching "${searchQuery}"`
+                : "No products found in this category."}
+            </p>
           </div>
         )}
       </main>

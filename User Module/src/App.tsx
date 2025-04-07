@@ -10,17 +10,19 @@ import CategoryPage from "./pages/CategoryPage";
 import ProductCard from "./components/ProductCard";
 import ProductDetails from "./components/ProductDetails";
 import CartDrawer from "./components/CartDrawer";
-import { Product, CartItem, cartService } from "@/services/api";
+import { Product, CartItem, cartService, userService, orderService } from "@/services/api";
 import Auth from "./pages/Auth";
 import Orders from "./pages/Orders";
 import Addresses from "./pages/Addresses";
 import { toast } from "react-hot-toast";
-import { authService } from "@/services/auth";
+import { authService, User as AuthUser } from "@/services/auth";
 import LoginButton from "@/components/LoginButton";
+import Navbar from "@/components/Navbar";
 
 const queryClient = new QueryClient();
 
 interface User {
+  id: number;
   name: string;
   email: string;
 }
@@ -34,33 +36,79 @@ interface Order {
   status: 'pending' | 'delivered' | 'cancelled';
 }
 
+interface Address {
+  address_id: number;
+  address_type: 'Home' | 'Work' | 'Hotel' | 'Other';
+  name: string;
+  phone: string;
+  house_no: string;
+  building_name?: string;
+  street: string;
+  area: string;
+  city: string;
+  state: string;
+  pincode: string;
+  landmark?: string;
+}
+
+interface Category {
+  category_id: number;
+  name: string;
+}
+
+interface ProductDetailsProps {
+  product: Product;
+  isLoggedIn: boolean;
+  onAddToCart: (product: Product, quantity: number) => Promise<void>;
+  onUpdateCart: (productId: number, quantity: number) => Promise<void>;
+  onRemoveFromCart: (productId: number) => Promise<void>;
+  cartItems: CartItem[];
+  selectedAddress: string;
+  onAddressChange: (address: string) => void;
+  addresses: Address[];
+  user: { name: string; email: string } | null;
+  onLogout: () => void;
+}
+
 const AppContent = () => {
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    // Initialize from localStorage
-    return localStorage.getItem("isLoggedIn") === "true";
-  });
-  const [user, setUser] = useState<User | null>(() => {
-    // Initialize from localStorage
-    const savedUser = localStorage.getItem("user");
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
-  const [selectedAddress, setSelectedAddress] = useState(() => {
-    // Initialize from localStorage
-    return localStorage.getItem("selectedAddress") || "";
-  });
-  const [addresses, setAddresses] = useState<string[]>(() => {
-    const savedAddresses = localStorage.getItem("addresses");
-    return savedAddresses ? JSON.parse(savedAddresses) : [
-      "123 Main Street, City, State, Country",
-      "456 Park Avenue, City, State, Country",
-      "789 Beach Road, City, State, Country"
-    ];
-  });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState<string>("");
+  const [addresses, setAddresses] = useState<Address[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
+  const [showProductDetails, setShowProductDetails] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Initialize user state from auth service
+  useEffect(() => {
+    const checkAuth = () => {
+      const isLoggedIn = authService.isLoggedIn();
+      setIsLoggedIn(isLoggedIn);
+      
+      if (isLoggedIn) {
+        const currentUser = authService.getCurrentUser();
+        setUser(currentUser);
+      }
+      
+      // Initialize selected address from localStorage
+      const savedAddress = localStorage.getItem('selectedAddress');
+      if (savedAddress) {
+        setSelectedAddress(savedAddress);
+      }
+    };
+    
+    checkAuth();
+  }, []);
 
   // Fetch cart items when component mounts or user logs in
   useEffect(() => {
@@ -83,6 +131,32 @@ const AppContent = () => {
     fetchCart();
   }, [isLoggedIn]);
 
+  // Fetch addresses when component mounts or user logs in
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      if (isLoggedIn) {
+        try {
+          const userAddresses = await userService.getAddresses();
+          setAddresses(userAddresses);
+          
+          // If there's a saved address ID in localStorage, use it
+          const savedAddressId = localStorage.getItem('selectedAddress');
+          if (savedAddressId) {
+            setSelectedAddress(savedAddressId);
+          } else if (userAddresses.length > 0) {
+            // If no saved address but user has addresses, use the first one
+            setSelectedAddress(userAddresses[0].address_id.toString());
+            localStorage.setItem('selectedAddress', userAddresses[0].address_id.toString());
+          }
+        } catch (error) {
+          console.error('Error fetching addresses:', error);
+        }
+      }
+    };
+
+    fetchAddresses();
+  }, [isLoggedIn]);
+
   // Persist authentication state to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem("isLoggedIn", isLoggedIn.toString());
@@ -98,28 +172,30 @@ const AppContent = () => {
     localStorage.setItem("selectedAddress", selectedAddress);
   }, [selectedAddress]);
 
-  // Persist addresses to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem("addresses", JSON.stringify(addresses));
-  }, [addresses]);
-
   const toggleCart = () => {
     setIsCartOpen(!isCartOpen);
   };
 
-  const handleLogin = (userData: User) => {
+  const handleLogin = (userData: AuthUser) => {
     setIsLoggedIn(true);
     setUser(userData);
+    localStorage.setItem('isLoggedIn', 'true');
+    localStorage.setItem('user', JSON.stringify(userData));
   };
 
   const handleLogout = () => {
-    authService.logout();
     setIsLoggedIn(false);
     setUser(null);
+    setSelectedAddress("");
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('user');
+    localStorage.removeItem('selectedAddress');
+    authService.logout();
   };
 
-  const handleAddressChange = (address: string) => {
-    setSelectedAddress(address);
+  const handleAddressChange = (addressId: string) => {
+    setSelectedAddress(addressId);
+    localStorage.setItem('selectedAddress', addressId);
   };
 
   const handleAddToCart = async (product: Product, quantity: number) => {
@@ -194,22 +270,10 @@ const AppContent = () => {
       return;
     }
 
-    try {
-      const orderData = {
-        items: cartItems,
-        address: selectedAddress,
-        paymentMethod: 'cod' as const
-      };
-
-      await cartService.placeOrder(orderData);
-      setCartItems([]);
-      setIsCartOpen(false);
-      setShowOrderSuccess(true);
-      toast.success("Order placed successfully!");
-    } catch (error) {
-      console.error('Error placing order:', error);
-      toast.error('Failed to place order');
-    }
+    // Clear cart and show success message
+    setCartItems([]);
+    setIsCartOpen(false);
+    setShowOrderSuccess(true);
   };
 
   const commonProps = {
@@ -250,11 +314,17 @@ const AppContent = () => {
         <Route path="/addresses" element={<Addresses {...commonProps} />} />
         <Route path="/product/:id" element={
           <ProductDetails
-            {...commonProps}
+            product={selectedProduct}
+            isLoggedIn={isLoggedIn}
             onAddToCart={handleAddToCart}
             onUpdateCart={handleUpdateCart}
             onRemoveFromCart={handleRemoveFromCart}
-            isCartOpen={isCartOpen}
+            cartItems={cartItems}
+            selectedAddress={selectedAddress}
+            onAddressChange={handleAddressChange}
+            addresses={addresses}
+            user={user}
+            onLogout={handleLogout}
           />
         } />
         <Route path="/category/:category" element={
@@ -283,6 +353,7 @@ const AppContent = () => {
         onPlaceOrder={handlePlaceOrder}
         addresses={addresses}
         onAddressChange={handleAddressChange}
+        userId={user?.id}
       />
       {showOrderSuccess && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -303,6 +374,15 @@ const AppContent = () => {
           <LoginButton onLogin={handleLogin} />
         )}
       </div>
+      <Navbar
+        toggleCart={toggleCart}
+        cartItems={cartItems}
+        isLoggedIn={isLoggedIn}
+        user={user}
+        onLogout={handleLogout}
+        selectedAddress={selectedAddress}
+        onAddressChange={handleAddressChange}
+      />
     </>
   );
 };

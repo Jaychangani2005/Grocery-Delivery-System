@@ -1,9 +1,11 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Search, X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { productService } from "@/services/api";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 
 interface SearchBarProps {
   onClose?: () => void;
@@ -11,10 +13,12 @@ interface SearchBarProps {
 }
 
 const SearchBar = ({ onClose, className }: SearchBarProps) => {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -36,24 +40,40 @@ const SearchBar = ({ onClose, className }: SearchBarProps) => {
     };
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle search logic here
-    console.log("Searching for:", query);
-    
-    // Close search dropdown
-    setIsFocused(false);
-    
-    // Close search bar on mobile after submitting
-    if (onClose && window.innerWidth < 768) {
-      onClose();
+    if (!query.trim()) return;
+
+    try {
+      setIsLoading(true);
+      console.log("Searching for:", query);
+      
+      // Call the search API
+      const results = await productService.searchProducts(query.trim());
+      console.log("Search results:", results);
+      
+      // Navigate to search results page
+      navigate(`/category/all?search=${encodeURIComponent(query.trim())}`);
+      
+      // Close search dropdown
+      setIsFocused(false);
+      
+      // Close search bar on mobile after submitting
+      if (onClose && window.innerWidth < 768) {
+        onClose();
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      toast.error("Failed to search products");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleInputFocus = () => {
     setIsFocused(true);
     setIsVisible(true);
-    setHasInteracted(true); // Mark as interacted when focused
+    setHasInteracted(true);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,8 +84,7 @@ const SearchBar = ({ onClose, className }: SearchBarProps) => {
   const selectSuggestion = (suggestion: string) => {
     setQuery(suggestion);
     setIsFocused(false);
-    // You can also trigger the search here if you want
-    console.log("Selected suggestion:", suggestion);
+    handleSubmit(new Event('submit') as any);
   };
 
   const recentSearches = ["organic apples", "milk", "whole wheat bread", "avocados"];
@@ -118,8 +137,13 @@ const SearchBar = ({ onClose, className }: SearchBarProps) => {
           variant="ghost"
           size="icon"
           className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 w-7 hover:bg-primary hover:text-primary-foreground rounded-full transition-colors duration-200"
+          disabled={isLoading}
         >
-          <ArrowRight className="h-3.5 w-3.5" />
+          {isLoading ? (
+            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          ) : (
+            <ArrowRight className="h-3.5 w-3.5" />
+          )}
         </Button>
       </form>
 
@@ -139,7 +163,7 @@ const SearchBar = ({ onClose, className }: SearchBarProps) => {
                   <li key={i}>
                     <button 
                       className="w-full text-left px-2 py-1.5 rounded-md hover:bg-accent text-sm flex items-center justify-between group"
-                      onClick={() => selectSuggestion(`Suggested Product ₹{i} for "₹{query}"`)}
+                      onClick={() => selectSuggestion(`Suggested Product ${i} for "${query}"`)}
                     >
                       <span>Suggested Product {i} for "<strong>{query}</strong>"</span>
                       <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />

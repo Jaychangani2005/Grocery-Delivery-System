@@ -11,11 +11,15 @@ export default function OrderDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // For development, we'll use a hardcoded seller_id
+  // In production, this should come from authentication
+  const seller_id = "1";
+
   useEffect(() => {
     const fetchOrderDetails = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`http://localhost:5000/api/dashboard/order-details/${orderId}`);
+        const response = await axios.get(`http://localhost:5000/api/dashboard/order-details/${orderId}?seller_id=${seller_id}`);
         setOrder(response.data);
         setError(null);
       } catch (err) {
@@ -47,15 +51,21 @@ export default function OrderDetails() {
       <div className="bg-gray-50 min-h-screen">
         <SellerNavbar />
         <div className="mt-20 p-6">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-            <strong className="font-bold">Error!</strong>
-            <span className="block sm:inline"> {error}</span>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-            >
-              Retry
-            </button>
+          <div className="text-center py-8">
+            <div className="text-red-600">{error}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="bg-gray-50 min-h-screen">
+        <SellerNavbar />
+        <div className="mt-20 p-6">
+          <div className="text-center py-8">
+            <div className="text-gray-600">No order details found.</div>
           </div>
         </div>
       </div>
@@ -66,64 +76,120 @@ export default function OrderDetails() {
     <div className="bg-gray-50 min-h-screen">
       <SellerNavbar />
       <div className="mt-20 p-6">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-800">Order Details</h1>
-            <button
-              onClick={() => navigate(-1)}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition"
-            >
-              Back to Orders
-            </button>
-          </div>
+        <div className="max-w-4xl mx-auto bg-white shadow-md rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">Order Details</h2>
 
           {/* Order Information */}
-          <div className="bg-white shadow-md rounded-lg p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-700 border-b pb-3 mb-4">Order Information</h3>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <h2 className="text-lg font-semibold mb-4">Order Information</h2>
-                <div className="space-y-2">
-                  <p><span className="font-medium">Order ID:</span> #{order.order_id}</p>
-                  <p><span className="font-medium">Order Date:</span> {new Date(order.order_date).toLocaleString()}</p>
-                  <p><span className="font-medium">Status:</span> 
-                    <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${
-                      order.order_status === 'Delivered' ? 'bg-green-200 text-green-700' :
-                      order.order_status === 'Pending' ? 'bg-yellow-200 text-yellow-700' :
-                      order.order_status === 'Out For delivery' ? 'bg-blue-200 text-blue-700' :
-                      'bg-purple-200 text-purple-700'
-                    }`}>
-                      {order.order_status}
-                    </span>
-                  </p>
-                  <p><span className="font-medium">Payment Method:</span> {order.payment_status}</p>
-                </div>
+                <p className="text-gray-600">Order ID</p>
+                <p className="font-medium">{order.order_id}</p>
               </div>
               <div>
-                <h2 className="text-lg font-semibold mb-4">Customer Information</h2>
-                <div className="space-y-2">
-                  <p><span className="font-medium">Name:</span> {order.customer_name}</p>
-                  <p><span className="font-medium">Phone:</span> {order.phone_number || 'N/A'}</p>
-                  <p><span className="font-medium">Delivery Address:</span> {order.delivery_address}</p>
+                <p className="text-gray-600">Order Date</p>
+                <p className="font-medium">{order.order_date}</p>
                 </div>
+              <div>
+                <p className="text-gray-600">Order Status</p>
+                <p className="font-medium">{order.order_status}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Payment Method</p>
+                <p className="font-medium">{order.payment_method}</p>
+                </div>
+              <div>
+                <p className="text-gray-600">Total Amount</p>
+                <p className="font-medium">₹{order.order_total}</p>
               </div>
             </div>
           </div>
 
           {/* Product Details */}
-          <div className="bg-white shadow-md rounded-lg p-6">
-            <h2 className="text-lg font-semibold mb-4">Product Details</h2>
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-700 border-b pb-3 mb-4">Product Details</h3>
+            {order.products && order.products.length > 0 ? (
             <div className="space-y-4">
-              <div className="border-b pb-4">
-                <p><span className="font-medium">Product Name:</span> {order.product_name}</p>
-                <p><span className="font-medium">Category:</span> {order.category}</p>
-                <p><span className="font-medium">Subcategory:</span> {order.subcategory || 'N/A'}</p>
-                <p><span className="font-medium">Description:</span> {order.description}</p>
-                <p><span className="font-medium">Quantity:</span> {order.quantity}</p>
-                <p><span className="font-medium">Price per unit:</span> ₹{order.price}</p>
-                <p><span className="font-medium">Total Price:</span> ₹{order.total_price}</p>
+                {order.products.map((product, index) => (
+                  <div key={index} className="border rounded-lg p-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-gray-600">Product Name</p>
+                        <p className="font-medium">{product.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Category</p>
+                        <p className="font-medium">{product.category}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Subcategory</p>
+                        <p className="font-medium">{product.subcategory}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Quantity</p>
+                        <p className="font-medium">{product.quantity}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Price</p>
+                        <p className="font-medium">₹{product.price}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Total</p>
+                        <p className="font-medium">₹{product.total}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-gray-600">Description</p>
+                        <p className="font-medium">{product.description || "No description"}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-600">No products found in this order.</p>
+            )}
+          </div>
+
+          {/* Customer Details */}
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-700 border-b pb-3 mb-4">Customer Details</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-gray-600">Customer Name</p>
+                <p className="font-medium">{order.customer_name}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Phone Number</p>
+                <p className="font-medium">{order.phone_number || "N/A"}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-gray-600">Delivery Address</p>
+                <p className="font-medium">{order.delivery_address || "N/A"}</p>
               </div>
             </div>
+          </div>
+
+          {/* Status History */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-700 border-b pb-3 mb-4">Status History</h3>
+            {order.status_history && order.status_history.length > 0 ? (
+              <div className="space-y-2">
+                {order.status_history.map((status, index) => (
+                  <div key={index} className="flex items-center space-x-4">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div>
+                      <p className="font-medium">{status.status}</p>
+                      <p className="text-sm text-gray-500">
+                        Changed by: {status.changed_by} at {new Date(status.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-600">No status history available.</p>
+            )}
           </div>
         </div>
       </div>

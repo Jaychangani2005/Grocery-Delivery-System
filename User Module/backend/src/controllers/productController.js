@@ -102,6 +102,11 @@ const productController = {
       const { categoryId } = req.params;
       console.log('Requested category:', categoryId);
       
+      // Handle "all" category case
+      if (categoryId === 'all') {
+        return productController.getAllProducts(req, res);
+      }
+      
       // First, try to get category by ID
       const [categories] = await pool.query(
         'SELECT category_id, name FROM product_categories WHERE category_id = ? OR LOWER(name) = LOWER(?)',
@@ -220,7 +225,13 @@ const productController = {
   searchProducts: async (req, res) => {
     try {
       const { q } = req.query;
-      const searchTerm = `%${q}%`;
+      if (!q) {
+        return res.json([]);
+      }
+      
+      const searchTerm = q.toLowerCase();
+      const wildcardTerm = `%${searchTerm}%`;
+      const exactTerm = searchTerm;
       
       const [products] = await pool.query(`
         SELECT 
@@ -233,15 +244,42 @@ const productController = {
           pc.name as category,
           COALESCE(AVG(r.stars), 4.5) as rating,
           p.unit,
-          pi.image_url as image
+          pi.image_url as image,
+          CASE 
+            WHEN LOWER(p.name) = ? THEN 10
+            WHEN LOWER(p.name) LIKE CONCAT('% ', ?, ' %') THEN 8
+            WHEN LOWER(p.name) LIKE CONCAT(?, ' %') THEN 7
+            WHEN LOWER(p.name) LIKE CONCAT('% ', ?) THEN 7
+            WHEN LOWER(p.name) LIKE ? THEN 5
+            WHEN LOWER(p.product_detail) LIKE ? THEN 3
+            WHEN LOWER(pc.name) LIKE ? THEN 1
+            ELSE 0
+          END as relevance
         FROM products p
         LEFT JOIN product_categories pc ON p.category_id = pc.category_id
         LEFT JOIN order_ratings r ON p.product_id = r.order_id
         LEFT JOIN product_images pi ON p.product_id = pi.product_id
-        WHERE (p.name LIKE ? OR p.product_detail LIKE ?) AND p.stock > 0
+        WHERE (
+          LOWER(p.name) LIKE ? OR 
+          LOWER(p.product_detail) LIKE ? OR 
+          LOWER(pc.name) LIKE ?
+        ) AND p.stock > 0
         GROUP BY p.product_id
-        ORDER BY p.name
-      `, [searchTerm, searchTerm]);
+        HAVING relevance > 0
+        ORDER BY relevance DESC, rating DESC, p.name
+        LIMIT 20
+      `, [
+        exactTerm,
+        exactTerm,
+        exactTerm,
+        exactTerm,
+        wildcardTerm,
+        wildcardTerm,
+        wildcardTerm,
+        wildcardTerm,
+        wildcardTerm,
+        wildcardTerm
+      ]);
 
       // Format the response
       const formattedProducts = products.map(product => ({
@@ -257,6 +295,7 @@ const productController = {
         stock: parseInt(product.stock)
       }));
 
+      console.log(`Found ${formattedProducts.length} products matching "${q}"`);
       res.json(formattedProducts);
     } catch (error) {
       console.error('Error searching products:', error);

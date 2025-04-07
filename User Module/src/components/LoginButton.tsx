@@ -3,7 +3,7 @@ import { authService } from "@/services/auth";
 import { toast } from "react-hot-toast";
 
 interface LoginButtonProps {
-  onLogin: (userData: { name: string; email: string }) => void;
+  onLogin: (userData: { id: number; name: string; email: string }) => void;
 }
 
 const LoginButton = ({ onLogin }: LoginButtonProps) => {
@@ -16,11 +16,8 @@ const LoginButton = ({ onLogin }: LoginButtonProps) => {
       localStorage.setItem("user", JSON.stringify(response.user));
       localStorage.setItem("isLoggedIn", "true");
       
-      // Call the onLogin callback with user data
-      onLogin({
-        name: response.user.name,
-        email: response.user.email,
-      });
+      // Call the onLogin callback with complete user data including id
+      onLogin(response.user);
 
       toast.success("Logged in successfully!");
     } catch (error) {

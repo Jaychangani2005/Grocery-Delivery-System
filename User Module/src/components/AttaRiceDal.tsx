@@ -7,7 +7,7 @@ import { ShoppingCart, ChevronRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import CartDrawer from "./CartDrawer";
 import { Badge } from "@/components/ui/badge";
-import { Product, CartItem, productService } from "@/services/api";
+import { Product, CartItem, Address, productService } from "@/services/api";
 import { toast } from "react-hot-toast";
 
 interface AttaRiceDalProps {
@@ -20,6 +20,8 @@ interface AttaRiceDalProps {
   selectedAddress: string;
   isLoggedIn: boolean;
   onLoginClick: () => void;
+  addresses: Address[];
+  onAddressChange: (address: string) => void;
 }
 
 const AttaRiceDal = ({
@@ -32,6 +34,8 @@ const AttaRiceDal = ({
   selectedAddress,
   isLoggedIn,
   onLoginClick,
+  addresses,
+  onAddressChange,
 }: AttaRiceDalProps) => {
   const isMobile = useIsMobile();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -144,8 +148,8 @@ const AttaRiceDal = ({
         isLoggedIn={isLoggedIn}
         onLoginClick={onLoginClick}
         onPlaceOrder={() => {}}
-        addresses={[]}
-        onAddressChange={() => {}}
+        addresses={addresses}
+        onAddressChange={onAddressChange}
       />
     </section>
   );

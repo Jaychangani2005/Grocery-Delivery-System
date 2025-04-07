@@ -14,6 +14,9 @@ router.get('/best-sellers', productController.getBestSellers);
 // Get products by category
 router.get('/category/:categoryId', productController.getProductsByCategory);
 
+// Get all products (same as root route, for consistency)
+router.get('/category/all', productController.getAllProducts);
+
 // Search products
 router.get('/search', productController.searchProducts);
 

@@ -9,58 +9,82 @@ require("dotenv").config();
 const JWT_SECRET = process.env.JWT_SECRET || "d4ae8da002459dc55d685c894b8df54c3e6ddaab0b8969c104b9ee089e589625";
 
 router.post('/login', async (req, res) => {
-  console.log("Login route hit!");
+  console.log("Login route hit with data:", { email: req.body.email });
   const { email, password } = req.body;
 
   if (!email || !password) {
+    console.log("Missing email or password");
     return res.status(400).json({ error: "Email and password are required" });
   }
 
-  // Check if user exists in users table
-  let query = "SELECT * FROM users WHERE email = ?";
-  db.query(query, [email], async (err, results) => {
-    if (err) {
-      console.error("Database error:", err);
-      return res.status(500).json({ error: "Internal server error" });
-    }
+  try {
+    // First check if it's a seller
+    const sellerQuery = "SELECT * FROM sellers WHERE email = ? AND is_approved = '1'";
+    console.log("Checking seller first:", sellerQuery, "with email:", email);
+    
+    db.query(sellerQuery, [email], async (err, sellerResults) => {
+      if (err) {
+        console.error("Database error fetching seller:", err);
+        return res.status(500).json({ error: "Internal server error" });
+      }
 
-    if (results.length === 0) {
-      return res.status(401).json({ error: "Invalid email or password" });
-    }
+      if (sellerResults.length > 0) {
+        const seller = sellerResults[0];
+        console.log("Seller found:", { id: seller.seller_id, name: seller.store_name });
+        
+        // Direct password comparison since it's not encrypted
+        if (password === seller.password) {
+          const token = jwt.sign({ id: seller.seller_id, role: "seller" }, JWT_SECRET, { expiresIn: "1h" });
+          console.log("Generated token for seller");
+          return res.json({ 
+            success: true, 
+            role: "seller", 
+            name: seller.store_name, 
+            seller_id: seller.seller_id, 
+            token 
+          });
+        }
+      }
 
-    const user = results[0];
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ error: "Invalid email or password" });
-    }
-
-    let userId, role, name;
-    role = user.role;
-
-    if (role === "seller") {
-      const sellerQuery = "SELECT * FROM sellers WHERE email = ?";
-      db.query(sellerQuery, [email], (err, sellerResults) => {
+      // If not a seller or seller login failed, check users table
+      const userQuery = "SELECT * FROM users WHERE email = ?";
+      console.log("Checking users table:", userQuery, "with email:", email);
+      
+      db.query(userQuery, [email], async (err, userResults) => {
         if (err) {
           console.error("Database error:", err);
           return res.status(500).json({ error: "Internal server error" });
         }
 
-        if (sellerResults.length === 0) {
-          return res.status(404).json({ error: "Seller not found" });
+        if (userResults.length === 0) {
+          console.log("No user found with email:", email);
+          return res.status(401).json({ error: "Invalid email or password" });
         }
 
-        userId = sellerResults[0].seller_id;
-        name = sellerResults[0].store_name;
-        const token = jwt.sign({ id: userId, role }, JWT_SECRET, { expiresIn: "1h" });
-        return res.json({ success: true, role, name, seller_id: userId, token });
+        const user = userResults[0];
+        console.log("User found:", { id: user.user_id, role: user.role });
+
+        // Direct password comparison since it's not encrypted
+        if (password === user.password) {
+          const token = jwt.sign({ id: user.user_id, role: user.role }, JWT_SECRET, { expiresIn: "1h" });
+          console.log("Generated token for user");
+          return res.json({ 
+            success: true, 
+            role: user.role, 
+            name: user.full_name, 
+            user_id: user.user_id, 
+            token 
+          });
+        } else {
+          console.log("Password mismatch for user:", email);
+          return res.status(401).json({ error: "Invalid email or password" });
+        }
       });
-    } else {
-      userId = user.user_id;
-      name = user.full_name;
-      const token = jwt.sign({ id: userId, role }, JWT_SECRET, { expiresIn: "1h" });
-      return res.json({ success: true, role, name, user_id: userId, token });
-    }
-  });
+    });
+  } catch (error) {
+    console.error("Unexpected error during login:", error);
+    return res.status(500).json({ error: "An unexpected error occurred" });
+  }
 });
 
 module.exports = router;
