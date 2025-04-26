@@ -9,7 +9,7 @@ const Navbar = () => {
   return (
     <nav className="fixed top-0 left-0 w-full bg-white shadow-md z-20 p-4 flex justify-between items-center">
       {/* Logo */}
-      <h1 className="text-xl font-bold text-orange-500">GroceryDash</h1>
+      <h1 className="text-xl font-bold text-orange-500">ApnaKirana</h1>
 
       {/* Desktop Menu */}
       <div className="hidden md:flex space-x-6">

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-import SellerNavbar from "../components/SellerNavbar";
 
 const ViewProduct = () => {
   const { productId } = useParams();
@@ -50,8 +49,7 @@ const ViewProduct = () => {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      <SellerNavbar />
-      <div className="mt-20 p-6">
+      <div className="p-6">
         <Section title="Product Details">
           <div className="bg-white shadow-md rounded-lg p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

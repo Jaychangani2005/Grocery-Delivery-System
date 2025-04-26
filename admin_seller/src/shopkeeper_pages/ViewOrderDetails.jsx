@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
-import SellerNavbar from "../components/SellerNavbar";
 
 export default function OrderDetails() {
   const { orderId } = useParams();
@@ -36,8 +35,7 @@ export default function OrderDetails() {
   if (loading) {
     return (
       <div className="bg-gray-50 min-h-screen">
-        <SellerNavbar />
-        <div className="mt-20 p-6">
+        <div className="p-6">
           <div className="text-center py-8">
             <div className="animate-pulse text-xl text-gray-600">Loading order details...</div>
           </div>
@@ -49,8 +47,7 @@ export default function OrderDetails() {
   if (error) {
     return (
       <div className="bg-gray-50 min-h-screen">
-        <SellerNavbar />
-        <div className="mt-20 p-6">
+        <div className="p-6">
           <div className="text-center py-8">
             <div className="text-red-600">{error}</div>
           </div>
@@ -62,8 +59,7 @@ export default function OrderDetails() {
   if (!order) {
     return (
       <div className="bg-gray-50 min-h-screen">
-        <SellerNavbar />
-        <div className="mt-20 p-6">
+        <div className="p-6">
           <div className="text-center py-8">
             <div className="text-gray-600">No order details found.</div>
           </div>
@@ -74,8 +70,7 @@ export default function OrderDetails() {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      <SellerNavbar />
-      <div className="mt-20 p-6">
+      <div className="p-6">
         <div className="max-w-4xl mx-auto bg-white shadow-md rounded-lg p-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Order Details</h2>
 

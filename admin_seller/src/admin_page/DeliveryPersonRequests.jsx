@@ -20,7 +20,7 @@ const DeliveryPersonRequests = () => {
     <div className="bg-gray-50 min-h-screen p-6">
       {/* ✅ Navbar (Same as Dashboard) */}
       <nav className="fixed top-0 left-0 w-full bg-white shadow-md z-20 p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-orange-500">GroceryDash</h1>
+        <h1 className="text-xl font-bold text-orange-500">ApnaKirana</h1>
         <button
           onClick={() => navigate(-1)}
           className="bg-orange-500 text-white px-4 py-2 rounded-full text-sm hover:opacity-80"

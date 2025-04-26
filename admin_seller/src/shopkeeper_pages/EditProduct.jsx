@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import SellerNavbar from "../components/SellerNavbar";
 
 const EditProduct = () => {
   const { productId } = useParams();
@@ -114,7 +113,6 @@ const EditProduct = () => {
 
   if (error) return (
     <div className="min-h-screen bg-gray-50">
-      <SellerNavbar />
       <div className="mt-20 p-6">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
           <strong className="font-bold">Error!</strong>
@@ -126,7 +124,6 @@ const EditProduct = () => {
 
   if (!product) return (
     <div className="min-h-screen bg-gray-50">
-      <SellerNavbar />
       <div className="mt-20 p-6 text-center">
         <div className="animate-pulse text-xl text-gray-600">Loading...</div>
       </div>
@@ -135,8 +132,7 @@ const EditProduct = () => {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      <SellerNavbar />
-      <div className="mt-20 p-6">
+      <div className="p-6">
         <Section title="Edit Product">
           <form className="space-y-4" onSubmit={handleSubmit}>
             <InputField label="Product Name" name="productName" value={formData.productName} onChange={handleChange} />

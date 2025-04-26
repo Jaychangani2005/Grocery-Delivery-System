@@ -127,6 +127,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const slides = [
   {
     image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1920&h=800&q=80",
+    // Image :"A:\git projects\Grocery-Delivery-System/User Module/static/banneratta.png",
     title: "Premium Atta, Rice & More",
     description: "Discover our finest selection of kitchen staples for authentic home cooking",
     buttonText: "Shop Grocery Essentials",

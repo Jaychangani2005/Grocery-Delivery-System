@@ -6,6 +6,11 @@ import ViewProduct from "./shopkeeper_pages/ViewProduct";
 import OrderManagement from "./shopkeeper_pages/OrderManagement";
 import OrderDetails from "./shopkeeper_pages/OrderDetails";
 import ViewOrderDetails from "./shopkeeper_pages/ViewOrderDetails";
+import NewOrders from "./shopkeeper_pages/orders/NewOrders";
+import PendingOrders from "./shopkeeper_pages/orders/PendingOrders";
+import OutForDelivery from "./shopkeeper_pages/orders/OutForDelivery";
+import CompletedOrders from "./shopkeeper_pages/orders/CompletedOrders";
+import CancelOrders from "./shopkeeper_pages/orders/CancelOrders";
 import AdminDashboard from "./admin_page/AdminDashboard";
 import ShopkeeperRequest from "./admin_page/shopkeeperRequest";
 import ShopkeeperDetails from "./admin_page/ShopkeeperDetails";
@@ -25,6 +30,36 @@ import DeliveryRegistration from './login_page/Delivery_Registration';
 import EndUserRegistration from './login_page/End_use_RegistrationPage';
 import { UserProvider } from './context/UserContext';
 import Profile from "./shopkeeper_pages/Profile";
+import SellerNavbar from "./components/SellerNavbar";
+import { useContext } from "react";
+import { UserContext } from "./context/UserContext";
+
+// Layout component for seller pages
+const SellerLayout = ({ children }) => {
+  return (
+    <div className="flex h-screen bg-background">
+      <SellerNavbar />
+      <div className="flex-1 flex flex-col md:ml-64">
+        <main className="flex-1 p-6 overflow-y-auto">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+// Protected route component
+const ProtectedRoute = ({ children }) => {
+  const { user } = useContext(UserContext);
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <SellerLayout>{children}</SellerLayout>;
+};
 
 function App() {
   return (
@@ -37,18 +72,22 @@ function App() {
           <Route path="/delivery-registration" element={<DeliveryRegistration />} />
           <Route path="/end-user-registration" element={<EndUserRegistration />} />
           
-          {/* Seller Routes */}
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/products" element={<ProductManagement />} />
-          <Route path="/add-product" element={<AddProduct />} />
-          <Route path="/view-product/:productId" element={<ViewProduct />} />
-          <Route path="/orders" element={<OrderManagement />} />
-          <Route path="/earnings" element={<SellerEarnings />} />
-          <Route path="/order-details/:orderId" element={<OrderDetails />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/settings" element={<h1>Settings Page (Coming Soon)</h1>} />
-          <Route path="/edit-product/:productId" element={<EditProduct />} />
-          <Route path="/view-order-details/:orderId" element={<ViewOrderDetails />} />
+          {/* Seller Routes - Protected */}
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/products" element={<ProtectedRoute><ProductManagement /></ProtectedRoute>} />
+          <Route path="/add-product" element={<ProtectedRoute><AddProduct /></ProtectedRoute>} />
+          <Route path="/view-product/:productId" element={<ProtectedRoute><ViewProduct /></ProtectedRoute>} />
+          <Route path="/orders" element={<ProtectedRoute><OrderManagement /></ProtectedRoute>} />
+          <Route path="/earnings" element={<ProtectedRoute><SellerEarnings /></ProtectedRoute>} />
+          <Route path="/order-details/:orderId" element={<ProtectedRoute><OrderDetails /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/edit-product/:productId" element={<ProtectedRoute><EditProduct /></ProtectedRoute>} />
+          <Route path="/view-order-details/:orderId" element={<ProtectedRoute><ViewOrderDetails /></ProtectedRoute>} />
+          <Route path="/new-orders" element={<ProtectedRoute><NewOrders /></ProtectedRoute>} />
+          <Route path="/pending-orders" element={<ProtectedRoute><PendingOrders /></ProtectedRoute>} />
+          <Route path="/out-for-delivery" element={<ProtectedRoute><OutForDelivery /></ProtectedRoute>} />
+          <Route path="/completed-orders" element={<ProtectedRoute><CompletedOrders /></ProtectedRoute>} />
+          <Route path="/cancel-orders" element={<ProtectedRoute><CancelOrders /></ProtectedRoute>} />
           
           {/* Admin Routes */}
           <Route path="/admin/login" element={<AdminLogin />} />
