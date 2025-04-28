@@ -66,14 +66,23 @@ const FeaturedProductCard = ({
   const handleUpdateQuantity = async (newQuantity: number) => {
     if (!onUpdateCart) return;
     
-    if (newQuantity < 1) {
-      onRemoveFromCart(product.id);
-    } else if (newQuantity > product.stock) {
-      toast.error(`Only ${product.stock} items available in stock`);
-    } else if (newQuantity > 10) {
-      toast.error("Maximum 10 items allowed per product");
-    } else {
-      onUpdateCart(product.id, newQuantity);
+    try {
+      setIsUpdating(true);
+      if (newQuantity < 1) {
+        await onRemoveFromCart(product.id);
+        toast.success(`${product.name} removed from cart`);
+      } else if (newQuantity > product.stock) {
+        toast.error(`Only ${product.stock} items available in stock`);
+      } else if (newQuantity > 10) {
+        toast.error("Maximum 10 items allowed per product");
+      } else {
+        await onUpdateCart(product.id, newQuantity);
+      }
+    } catch (error) {
+      console.error('Error updating cart:', error);
+      toast.error(error.message || 'Failed to update cart');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -94,17 +103,17 @@ const FeaturedProductCard = ({
       <div className="relative">
         <div className="relative aspect-square overflow-hidden">
           {!imageError ? (
-            <img
-              src={getImageUrl(product.image)}
-              alt={product.name}
-              className="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-300"
+          <img
+            src={getImageUrl(product.image)}
+            alt={product.name}
+            className="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-300"
               onLoad={() => setLoaded(true)}
               onError={(e) => {
                 console.error('Image failed to load:', product.image);
                 console.error('Attempted URL:', getImageUrl(product.image));
                 setImageError(true);
               }}
-            />
+          />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700">
               <span className="text-gray-400 dark:text-gray-500 text-sm">Image not available</span>

@@ -66,6 +66,7 @@ const CartDrawer = ({
 
     if (newQuantity < 1) {
       removeFromCart(productId);
+      toast.success("Item removed from cart");
     } else if (newQuantity > item.product.stock) {
       toast.error(`Only ${item.product.stock} items available in stock`);
     } else if (newQuantity > 10) {

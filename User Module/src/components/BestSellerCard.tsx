@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "./ui/badge";
 import { Product } from "@/services/api";
 import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
 
 // Constants
 const IMAGE_BASE_URL = 'http://localhost:5000'; // Backend static files server URL
@@ -45,11 +46,14 @@ const BestSellerCard = ({
     try {
       setIsUpdating(true);
       await onAddToCart(product, 1);
-      toast.success(`${product.name} added to cart`);
-      toggleCart();
+      toast.success(`${product.name} added to cart`, {
+        position: "bottom-left",
+      });
     } catch (error) {
       console.error('Error adding to cart:', error);
-      toast.error(error.message || 'Failed to add item to cart');
+      toast.error(error.message || 'Failed to add item to cart', {
+        position: "bottom-left",
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -66,14 +70,31 @@ const BestSellerCard = ({
   const handleUpdateQuantity = async (newQuantity: number) => {
     if (!onUpdateCart) return;
     
-    if (newQuantity < 1) {
-      onRemoveFromCart(product.id);
-    } else if (newQuantity > product.stock) {
-      toast.error(`Only ${product.stock} items available in stock`);
-    } else if (newQuantity > 10) {
-      toast.error("Maximum 10 items allowed per product");
+    try {
+      setIsUpdating(true);
+      if (newQuantity <= 0) {
+        await onRemoveFromCart(product.id);
+        toast.success(`${product.name} removed from cart`, {
+          position: "bottom-left",
+        });
+      } else if (newQuantity > product.stock) {
+        toast.error(`Only ${product.stock} items available in stock`, {
+          position: "bottom-left",
+        });
+      } else if (newQuantity > 10) {
+        toast.error("Maximum 10 items allowed per product", {
+          position: "bottom-left",
+        });
     } else {
-      onUpdateCart(product.id, newQuantity);
+        await onUpdateCart(product.id, newQuantity);
+      }
+    } catch (error) {
+      console.error('Error updating cart:', error);
+      toast.error(error.message || 'Failed to update cart', {
+        position: "bottom-left",
+      });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -84,11 +105,8 @@ const BestSellerCard = ({
   };
 
   return (
-    <div
-      className={cn(
-        "bg-white dark:bg-gray-800 rounded-xl shadow-soft overflow-hidden hover:shadow-md transition-shadow h-full cursor-pointer",
-        loaded ? "opacity-100" : "opacity-0"
-      )}
+    <Card
+      className="group relative overflow-hidden transition-all hover:shadow-lg"
       onClick={handleCardClick}
     >
       <div className="relative">
@@ -144,8 +162,11 @@ const BestSellerCard = ({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 flex items-center justify-center p-0"
-                onClick={(e) => handleUpdateQuantity(cartQuantity - 1)}
-                disabled={isUpdating || cartQuantity <= 1}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleUpdateQuantity(cartQuantity - 1);
+                }}
+                disabled={isUpdating}
               >
                 <Minus className="h-4 w-4" />
               </Button>
@@ -156,7 +177,10 @@ const BestSellerCard = ({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => handleUpdateQuantity(cartQuantity + 1)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleUpdateQuantity(cartQuantity + 1);
+                }}
                 disabled={cartQuantity >= 10 || cartQuantity >= product.stock}
               >
                 <Plus className="h-4 w-4" />
@@ -175,7 +199,7 @@ const BestSellerCard = ({
           </Button>
         )}
       </div>
-    </div>
+    </Card>
   );
 };
 

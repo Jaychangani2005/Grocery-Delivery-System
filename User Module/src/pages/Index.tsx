@@ -63,6 +63,7 @@ const Index = ({
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const isMobile = useIsMobile();
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Helper functions for cart
   const isProductInCart = (productId: number) => {
@@ -161,37 +162,59 @@ const Index = ({
     }
   };
 
-  // Remove redundant cart handling functions and use the ones from props
-  const handleAddToCartWrapper = async (product: Product, quantity: number) => {
-    if (!isLoggedIn || !user) {
-      onLoginClick();
+  const handleUpdateCartWrapper = async (productId: number, quantity: number) => {
+    if (!isLoggedIn) {
+      navigate('/auth');
       return;
     }
     try {
-      await onAddToCart(product, quantity);
+      setIsUpdating(true);
+      if (quantity <= 0) {
+        await onRemoveFromCart(productId);
+        toast.success('Item removed from cart');
+      } else {
+        await onUpdateCart(productId, quantity);
+      }
     } catch (error) {
-      console.error('Error adding to cart:', error);
-      toast.error(error.message || 'Failed to add item to cart');
+      console.error('Error updating cart:', error);
+      toast.error('Failed to update cart');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
-  const handleUpdateCartWrapper = async (productId: number, quantity: number) => {
-    if (!isLoggedIn || !user) return;
+  const handleAddToCartWrapper = async (product: Product, quantity: number) => {
+    if (!isLoggedIn) {
+      navigate('/auth');
+      return;
+    }
     try {
-      await onUpdateCart(productId, quantity);
+      setIsUpdating(true);
+      await onAddToCart(product, quantity);
+      toast.success(`${product.name} added to cart`);
+      toggleCart();
     } catch (error) {
-      console.error('Error updating cart:', error);
-      toast.error(error.message || 'Failed to update cart');
+      console.error('Error adding to cart:', error);
+      toast.error('Failed to add item to cart');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
   const handleRemoveFromCartWrapper = async (productId: number) => {
-    if (!isLoggedIn || !user) return;
+    if (!isLoggedIn) {
+      navigate('/auth');
+      return;
+    }
     try {
+      setIsUpdating(true);
       await onRemoveFromCart(productId);
+      toast.success('Item removed from cart');
     } catch (error) {
       console.error('Error removing from cart:', error);
-      toast.error(error.message || 'Failed to remove item from cart');
+      toast.error('Failed to remove item from cart');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -344,7 +367,7 @@ const Index = ({
                             size="icon"
                             className="h-10 w-10 flex items-center justify-center p-0"
                             onClick={() => handleUpdateCartWrapper(selectedProduct.id, getCartQuantity(selectedProduct.id) - 1)}
-                            disabled={getCartQuantity(selectedProduct.id) <= 1}
+                            disabled={isUpdating}
                           >
                             <Minus className="h-4 w-4" />
                           </Button>
@@ -366,15 +389,15 @@ const Index = ({
                         </span>
                       </div>
                     ) : (
-                      <Button
+                    <Button
                         onClick={() => handleAddToCartWrapper(selectedProduct, 1)}
-                        className="w-full md:w-auto"
-                        size="lg"
+                      className="w-full md:w-auto"
+                      size="lg"
                         disabled={!selectedProduct.stock}
-                      >
-                        <ShoppingCart className="mr-2 h-5 w-5" />
+                    >
+                      <ShoppingCart className="mr-2 h-5 w-5" />
                         {selectedProduct.stock ? "Add to Cart" : "Out of Stock"}
-                      </Button>
+                    </Button>
                     )}
                   </div>
                 </div>
@@ -417,19 +440,19 @@ const Index = ({
             {!categoryName && <CategoryGrid categories={categories} />}
 
             {!categoryName && (
-              <BestSellers
-                products={bestSellers}
-                isLoading={isLoading}
-                cartItems={cartItems}
+        <BestSellers
+          products={bestSellers}
+          isLoading={isLoading}
+          cartItems={cartItems}
                 onAddToCart={handleAddToCartWrapper}
                 onUpdateCart={handleUpdateCartWrapper}
                 onRemoveFromCart={handleRemoveFromCartWrapper}
-                isCartOpen={isCartOpen}
-                toggleCart={toggleCart}
-                selectedAddress={selectedAddress}
-                isLoggedIn={isLoggedIn}
-                onLoginClick={onLoginClick}
-              />
+          isCartOpen={isCartOpen}
+          toggleCart={toggleCart}
+          selectedAddress={selectedAddress}
+          isLoggedIn={isLoggedIn}
+          onLoginClick={onLoginClick}
+        />
             )}
 
             {categoryName ? (
@@ -461,81 +484,81 @@ const Index = ({
             ) : (
               // Show all categories on the home page
               categories.map(category => (
-                <CategoryProducts
-                  key={category.id}
-                  categoryId={category.name.toLowerCase()}
-                  categoryName={category.name}
-                  description={`Explore our ${category.name.toLowerCase()} collection`}
+          <CategoryProducts
+            key={category.id}
+            categoryId={category.name.toLowerCase()}
+            categoryName={category.name}
+            description={`Explore our ${category.name.toLowerCase()} collection`}
                   products={categoryProducts[category.id] || []}
-                  cartItems={cartItems}
+            cartItems={cartItems}
                   onAddToCart={handleAddToCartWrapper}
                   onUpdateCart={handleUpdateCartWrapper}
                   onRemoveFromCart={handleRemoveFromCartWrapper}
-                  isCartOpen={isCartOpen}
-                  toggleCart={toggleCart}
-                  selectedAddress={selectedAddress}
-                  isLoggedIn={isLoggedIn}
-                  onLoginClick={onLoginClick}
-                />
+            isCartOpen={isCartOpen}
+            toggleCart={toggleCart}
+            selectedAddress={selectedAddress}
+            isLoggedIn={isLoggedIn}
+            onLoginClick={onLoginClick}
+          />
               ))
             )}
 
             {!categoryName && (
               <>
-                <section className="py-12 bg-gray-50 dark:bg-gray-900">
-                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                      {benefits.map((benefit, index) => (
-                        <div key={index} className="flex items-start space-x-4">
-                          <div className="flex-shrink-0 bg-primary/10 p-3 rounded-lg">
-                            {benefit.icon}
-                          </div>
-                          <div>
-                            <h3 className="font-medium">{benefit.title}</h3>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {benefit.description}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+        <section className="py-12 bg-gray-50 dark:bg-gray-900">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {benefits.map((benefit, index) => (
+                <div key={index} className="flex items-start space-x-4">
+                  <div className="flex-shrink-0 bg-primary/10 p-3 rounded-lg">
+                    {benefit.icon}
                   </div>
-                </section>
+                  <div>
+                    <h3 className="font-medium">{benefit.title}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {benefit.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
-                <section className="py-10 md:py-20 bg-primary/5">
-                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="bg-white dark:bg-gray-900 rounded-xl md:rounded-2xl overflow-hidden shadow-lg">
-                      <div className="grid grid-cols-1 lg:grid-cols-2">
-                        <div className="p-6 md:p-12 flex flex-col justify-center">
-                          <span className="text-xs md:text-sm text-primary font-medium mb-2">Download Our App</span>
-                          <h2 className="text-xl md:text-3xl font-display font-bold mb-3 md:mb-4">
-                            Shop Groceries On The Go
-                          </h2>
-                          <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-6">
-                            Get exclusive app-only deals and manage your deliveries with ease.
-                            Download the ApnaKirana app today.
-                          </p>
-                          <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
-                            <img
-                              src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg"
-                              alt="Download on App Store"
-                              className="h-8 md:h-10 w-auto"
-                            />
-                            <img
-                              src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
-                              alt="Get it on Google Play"
-                              className="h-8 md:h-10 w-auto"
-                            />
-                          </div>
-                        </div>
-                        <div className="relative h-48 md:h-64 lg:h-auto">
-                          <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 mix-blend-multiply z-10"></div>
-                          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1585232350744-4a33512e28e6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600&q=80')] bg-cover bg-center"></div>
-                        </div>
-                      </div>
-                    </div>
+        <section className="py-10 md:py-20 bg-primary/5">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="bg-white dark:bg-gray-900 rounded-xl md:rounded-2xl overflow-hidden shadow-lg">
+              <div className="grid grid-cols-1 lg:grid-cols-2">
+                <div className="p-6 md:p-12 flex flex-col justify-center">
+                  <span className="text-xs md:text-sm text-primary font-medium mb-2">Download Our App</span>
+                  <h2 className="text-xl md:text-3xl font-display font-bold mb-3 md:mb-4">
+                    Shop Groceries On The Go
+                  </h2>
+                  <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-6">
+                    Get exclusive app-only deals and manage your deliveries with ease.
+                    Download the ApnaKirana app today.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
+                    <img
+                      src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg"
+                      alt="Download on App Store"
+                      className="h-8 md:h-10 w-auto"
+                    />
+                    <img
+                      src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
+                      alt="Get it on Google Play"
+                      className="h-8 md:h-10 w-auto"
+                    />
                   </div>
-                </section>
+                </div>
+                <div className="relative h-48 md:h-64 lg:h-auto">
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 mix-blend-multiply z-10"></div>
+                  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1585232350744-4a33512e28e6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600&q=80')] bg-cover bg-center"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
               </>
             )}
           </>

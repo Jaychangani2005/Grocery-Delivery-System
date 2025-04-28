@@ -75,17 +75,15 @@ const CategoryProducts = ({
         <div className="relative">
           <div
             ref={scrollRef}
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 overflow-y-auto max-h-[600px] pr-2"
-            style={{ 
-              scrollbarWidth: 'thin',
-              scrollbarColor: '#CBD5E0 #EDF2F7'
-            }}
+            className="flex space-x-3 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {products.map((product, index) => (
               <div
                 key={product.id}
                 className={cn(
-                  "flex-none",
+                  "flex-none snap-start",
+                  "w-[45%] sm:w-[30%] md:w-[23%] lg:w-[19%]",
                   loaded ? "translate-y-0 opacity-100" : "translate-y-0 opacity-0"
                 )}
                 style={{ transitionDelay: `${index * 50}ms` }}

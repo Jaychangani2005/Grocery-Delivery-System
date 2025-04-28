@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import { Plus, Minus, ShoppingCart } from "lucide-react";
 import CartDrawer from "@/components/CartDrawer";
 import { Product, CartItem, Address } from "@/services/api";
+import { toast } from "react-hot-toast";
 
 // Constants
 const IMAGE_BASE_URL = 'http://localhost:5000'; // Backend static files server URL
@@ -90,6 +91,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
       if (prev <= 1) {
         setIsAddedToCart(false);
         onRemoveFromCart(product.id);
+        toast.success(`${product.name} removed from cart`);
         return 1;
       }
       const newQuantity = prev - 1;
@@ -119,6 +121,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
         onLogout={onLogout}
         selectedAddress={selectedAddress}
         onAddressChange={onAddressChange}
+        isCartOpen={isCartOpen}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-6">

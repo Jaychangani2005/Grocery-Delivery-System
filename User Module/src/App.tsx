@@ -105,8 +105,8 @@ function App() {
         );
       } else {
         // If product doesn't exist, add it as a new item
-        const newItem = await cartService.addToCart(product.id, quantity);
-        setCartItems(prev => [...prev, { product, quantity }]);
+      const newItem = await cartService.addToCart(product.id, quantity);
+      setCartItems(prev => [...prev, { product, quantity }]);
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
@@ -142,9 +142,10 @@ function App() {
       setCartItems(prev => 
         prev.filter(item => item.product.id !== productId)
       );
+      toast.success("Item removed from cart");
     } catch (error) {
       console.error('Error removing from cart:', error);
-      throw error;
+      toast.error(error.message || 'Failed to remove item from cart');
     }
   };
 
