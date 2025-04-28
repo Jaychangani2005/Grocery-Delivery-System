@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-
-const API_BASE_URL = 'http://localhost:3000/api';
+import { API_URL } from '@/config';
 
 export interface User {
   id: number;
@@ -15,37 +14,54 @@ export interface LoginResponse {
 }
 
 export const authService = {
-  // Login user
-  login: async (email: string, password: string): Promise<LoginResponse> => {
+  // Login or Register user
+  login: async (email: string, password: string, name?: string): Promise<LoginResponse> => {
     try {
-      // For demo purposes, we'll simulate a successful login
-      // In a real app, you would make an API call to your backend
-      console.log('Logging in with:', { email, password });
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Create a mock user and token
-      const mockUser: User = {
-        id: 1,
-        name: email.split('@')[0], // Use part of email as name
-        email: email
-      };
-      
-      const mockToken = 'mock-jwt-token-' + Date.now();
-      
-      // Store token and user in localStorage
-      localStorage.setItem('token', mockToken);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      localStorage.setItem('isLoggedIn', 'true');
-      
-      return {
-        user: mockUser,
-        token: mockToken
-      };
+      // First try to login
+      try {
+        const response = await axios.post(`${API_URL}/auth/login`, {
+          email,
+          password
+        });
+
+        const { user, token } = response.data;
+        
+        // Store token and user in localStorage
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('isLoggedIn', 'true');
+        
+        return {
+          user,
+          token
+        };
+      } catch (loginError) {
+        // If login fails, try to register if name is provided
+        if (name) {
+          const registerResponse = await axios.post(`${API_URL}/auth/register`, {
+            name,
+            email,
+            password
+          });
+
+          const { user, token } = registerResponse.data;
+          
+          // Store token and user in localStorage
+          localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(user));
+          localStorage.setItem('isLoggedIn', 'true');
+          
+          return {
+            user,
+            token
+          };
+        } else {
+          throw new Error('Invalid credentials');
+        }
+      }
     } catch (error) {
-      console.error('Login error:', error);
-      throw new Error('Failed to login');
+      console.error('Login/Register error:', error);
+      throw new Error('Failed to login/register');
     }
   },
   
@@ -58,7 +74,10 @@ export const authService = {
   
   // Check if user is logged in
   isLoggedIn: (): boolean => {
-    return !!localStorage.getItem('token');
+    const token = localStorage.getItem('token');
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const user = localStorage.getItem('user');
+    return !!(token && isLoggedIn && user);
   },
   
   // Get current user

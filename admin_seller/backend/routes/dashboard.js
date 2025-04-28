@@ -439,7 +439,7 @@ router.get('/new-orders', (req, res) => {
         return res.status(500).json({ error: 'Database error' });
       }
       res.json(results.map(row => ({
-        id: `#${row.id}`,
+        id: row.id,
         customer: row.customer,
         address: row.address,
         details: row.details,
@@ -470,7 +470,7 @@ router.get('/new-orders', (req, res) => {
         return res.status(500).json({ error: 'Database error' });
       }
       res.json(results.map(row => ({
-        id: `#${row.id}`,
+        id: row.id,
         customer: row.customer,
         address: row.address,
         status: row.status,
@@ -500,11 +500,45 @@ router.get('/new-orders', (req, res) => {
         return res.status(500).json({ error: 'Database error' });
       }
       res.json(results.map(row => ({
-        id: `#${row.id}`,
+        id: row.id,
         customer: row.customer,
         address: row.address,
         status: row.status,
       created_at: row.created_at
+      })));
+    });
+  });
+
+  router.get('/canceled-orders', (req, res) => {
+    const { seller_id } = req.query;
+    const query = `
+      SELECT o.order_id AS id, u.full_name AS customer, ua.area AS address, 
+            GROUP_CONCAT(p.name) AS details, o.status, o.created_at
+      FROM (
+        SELECT DISTINCT o.order_id, o.user_id, o.status, o.created_at, o.address_id
+        FROM orders o
+        JOIN order_items oi ON o.order_id = oi.order_id
+        JOIN products p ON oi.product_id = p.product_id
+        WHERE o.status = 'cancelled' AND p.seller_id = ?
+      ) o
+      JOIN users u ON o.user_id = u.user_id
+      JOIN user_addresses ua ON o.address_id = ua.address_id
+      JOIN order_items oi ON o.order_id = oi.order_id
+      JOIN products p ON oi.product_id = p.product_id
+      GROUP BY o.order_id, u.full_name, ua.area, o.status, o.created_at;
+    `;
+    db.query(query, [seller_id], (err, results) => {
+      if (err) {
+        console.error('Error fetching canceled orders:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(results.map(row => ({
+        id: row.id,
+        customer: row.customer,
+        address: row.address,
+        details: row.details,
+        status: row.status,
+        created_at: row.created_at
       })));
     });
   });
@@ -674,30 +708,72 @@ router.get('/new-orders', (req, res) => {
 
   router.put('/update-order-status/:orderId', (req, res) => {
     const { orderId } = req.params;
-    const { status } = req.body;
+    const { status, seller_id } = req.body;
+
+    if (!seller_id) {
+      return res.status(400).json({ error: 'Seller ID is required' });
+    }
 
     const validStatuses = ['new', 'pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled', 'Out For delivery'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
 
-    const query = `
-      UPDATE orders
-      SET status = ?
-      WHERE order_id = ?;
+    // First, check if the order exists and belongs to the seller
+    const checkQuery = `
+      SELECT o.order_id, o.status
+      FROM orders o
+      JOIN order_items oi ON o.order_id = oi.order_id
+      JOIN products p ON oi.product_id = p.product_id
+      WHERE o.order_id = ? AND p.seller_id = ?
+      LIMIT 1;
     `;
 
-    db.query(query, [status, orderId], (err, results) => {
+    db.query(checkQuery, [orderId, seller_id], (err, results) => {
       if (err) {
         console.error('Database error:', err);
         return res.status(500).json({ error: 'Internal server error' });
       }
 
-      if (results.affectedRows === 0) {
-        return res.status(404).json({ error: 'Order not found' });
+      if (results.length === 0) {
+        return res.status(404).json({ error: 'Order not found or does not belong to this seller' });
       }
 
-      res.json({ success: true, message: `Order status updated to ${status}` });
+      const currentStatus = results[0].status;
+      
+      // If the status is already the same, return success
+      if (currentStatus === status) {
+        return res.json({ success: true, message: `Order status is already ${status}` });
+      }
+
+      // Update the order status
+      const updateQuery = `
+        UPDATE orders
+        SET status = ?
+        WHERE order_id = ?;
+      `;
+
+      db.query(updateQuery, [status, orderId], (updateErr, updateResults) => {
+        if (updateErr) {
+          console.error('Database error updating order:', updateErr);
+          return res.status(500).json({ error: 'Internal server error' });
+        }
+
+        // Add entry to order_status_history
+        const historyQuery = `
+          INSERT INTO order_status_history (order_id, new_status, changed_by, timestamp)
+          VALUES (?, ?, ?, NOW());
+        `;
+
+        db.query(historyQuery, [orderId, status, `seller_${seller_id}`], (historyErr) => {
+          if (historyErr) {
+            console.error('Database error updating history:', historyErr);
+            // Don't return error here, as the main update was successful
+          }
+
+          res.json({ success: true, message: `Order status updated to ${status}` });
+        });
+      });
     });
   });
 
@@ -1672,6 +1748,100 @@ router.get("/earnings", (req, res) => {
     res.json({ earnings, summary });
     });
   });
+});
+
+// Debug route to check order status
+router.get('/check-order-status/:orderId', (req, res) => {
+  const { orderId } = req.params;
+  const { seller_id } = req.query;
+
+  if (!seller_id) {
+    return res.status(400).json({ error: 'Seller ID is required' });
+  }
+
+  const query = `
+    SELECT o.order_id, o.status, p.seller_id
+    FROM orders o
+    JOIN order_items oi ON o.order_id = oi.order_id
+    JOIN products p ON oi.product_id = p.product_id
+    WHERE o.order_id = ? AND p.seller_id = ?
+    LIMIT 1;
+  `;
+
+  db.query(query, [orderId, seller_id], (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Order not found or does not belong to this seller' });
+    }
+
+    res.json(results[0]);
+  });
+});
+
+// Get canceled orders
+router.get("/canceled-orders", async (req, res) => {
+  try {
+    const { seller_id } = req.query;
+    console.log('Fetching canceled orders for seller_id:', seller_id);
+    
+    const query = `
+      SELECT DISTINCT
+        o.order_id,
+        o.total,
+        o.status,
+        o.created_at,
+        u.full_name,
+        u.email,
+        ua.name as delivery_name,
+        ua.phone as delivery_phone,
+        ua.house_no,
+        ua.building_name,
+        ua.street,
+        ua.area,
+        ua.city,
+        ua.state,
+        ua.pincode,
+        ua.landmark,
+        ua.address_type,
+        p.seller_id,
+        GROUP_CONCAT(DISTINCT p.name) as product_names
+      FROM 
+        orders o
+        INNER JOIN users u ON o.user_id = u.user_id
+        INNER JOIN user_addresses ua ON o.address_id = ua.address_id
+        INNER JOIN order_items oi ON o.order_id = oi.order_id
+        INNER JOIN products p ON oi.product_id = p.product_id
+      WHERE 
+        p.seller_id = ?
+        AND o.status = 'cancelled'
+      GROUP BY 
+        o.order_id, o.total, o.status, o.created_at, u.full_name, u.email,
+        ua.name, ua.phone, ua.house_no, ua.building_name, ua.street,
+        ua.area, ua.city, ua.state, ua.pincode, ua.landmark, ua.address_type,
+        p.seller_id
+      ORDER BY 
+        o.created_at DESC;
+    `;
+
+    const [orders] = await db.query(query, [seller_id]);
+    
+    console.log('Query executed with seller_id:', seller_id);
+    console.log('Number of canceled orders found:', orders.length);
+
+    if (!orders || orders.length === 0) {
+      console.log('No canceled orders found for seller_id:', seller_id);
+      return res.json([]);
+    }
+
+    res.json(orders);
+  } catch (error) {
+    console.error('Error fetching canceled orders:', error);
+    res.status(500).json({ error: 'Failed to fetch canceled orders' });
+  }
 });
 
 module.exports = router;

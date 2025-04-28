@@ -12,7 +12,7 @@ import { Product, CartItem } from "@/services/api";
 interface BestSellersProps {
   products: Product[];
   isLoading: boolean;
-  cartItems: CartItem[];
+  cartItems: { product: Product; quantity: number }[];
   onAddToCart: (product: Product, quantity: number) => void;
   onUpdateCart: (productId: number, quantity: number) => void;
   onRemoveFromCart: (productId: number) => void;
@@ -39,18 +39,14 @@ const BestSellers = ({
   const isMobile = useIsMobile();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setLoaded(true);
   }, []);
 
-  const isProductInCart = (productId: number) => {
-    return cartItems.some(item => item.productId === productId);
-  };
-
-  const getCartQuantity = (productId: number) => {
-    const item = cartItems.find(item => item.productId === productId);
-    return item ? item.quantity : 0;
+  const handleProductClick = (productId: number) => {
+    navigate(`/product/${productId}`);
   };
 
   return (
@@ -86,9 +82,10 @@ const BestSellers = ({
                   onAddToCart={onAddToCart}
                   onUpdateCart={onUpdateCart}
                   onRemoveFromCart={onRemoveFromCart}
-                  isInCart={isProductInCart(product.id)}
-                  cartQuantity={getCartQuantity(product.id)}
+                  isInCart={cartItems.some(item => item.product.id === product.id)}
+                  cartQuantity={cartItems.find(item => item.product.id === product.id)?.quantity || 0}
                   toggleCart={toggleCart}
+                  onClick={() => handleProductClick(product.id)}
                 />
               </div>
             ))}
@@ -98,7 +95,10 @@ const BestSellers = ({
       <CartDrawer
         isOpen={isCartOpen}
         onClose={toggleCart}
-        cartItems={cartItems}
+        cartItems={cartItems.map(item => ({
+          ...item,
+          product: item.product
+        }))}
         updateQuantity={onUpdateCart}
         removeFromCart={onRemoveFromCart}
         selectedAddress={selectedAddress}

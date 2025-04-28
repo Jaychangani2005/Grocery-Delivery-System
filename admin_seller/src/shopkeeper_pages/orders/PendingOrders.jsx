@@ -35,12 +35,14 @@ const PendingOrders = () => {
   }, [user?.seller_id]);
 
   const handleViewOrder = (orderId) => {
-    navigate(`/order-details/${orderId}`);
+    const cleanOrderId = String(orderId).replace('#', '');
+    navigate(`/order-details/${cleanOrderId}`);
   };
 
   const handleStartDelivery = async (orderId) => {
     try {
-      await axios.put(`http://localhost:5000/api/dashboard/complete-delivery/${orderId}`, {
+      const cleanOrderId = String(orderId).replace('#', '');
+      await axios.put(`http://localhost:5000/api/dashboard/complete-delivery/${cleanOrderId}`, {
         status: "Out For delivery",
         seller_id: user?.seller_id
       });
@@ -106,8 +108,8 @@ const PendingOrders = () => {
                     <div className="p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <h4 className="text-sm font-medium text-gray-900">Order {order.id}</h4>
-                          <p className="text-sm text-gray-500">{order.customer_name}</p>
+                          <h4 className="text-sm font-medium text-gray-900">Order #{String(order.id).replace('#', '')}</h4>
+                          <p className="text-sm text-gray-500">{order.customer}</p>
                         </div>
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                           {order.status}

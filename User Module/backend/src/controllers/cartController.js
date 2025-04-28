@@ -7,6 +7,10 @@ const cartController = {
       const userId = req.user.id;
       console.log('Getting cart for user:', userId);
 
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
       // Get or create cart
       const [carts] = await pool.query(
         'SELECT cart_id FROM cart WHERE user_id = ?',
@@ -76,6 +80,10 @@ const cartController = {
       const { productId, quantity } = req.body;
       
       console.log('Adding to cart:', { userId, productId, quantity });
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
 
       // Validate input
       if (!productId || !quantity || quantity < 1) {
@@ -183,6 +191,10 @@ const cartController = {
       
       console.log('Updating cart item:', { userId, productId, quantity });
 
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
       // Validate input
       if (!quantity || quantity < 0) {
         return res.status(400).json({ error: 'Invalid quantity' });
@@ -269,6 +281,10 @@ const cartController = {
       const { productId } = req.params;
       
       console.log('Removing from cart:', { userId, productId });
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
 
       // Get cart
       const [carts] = await pool.query(

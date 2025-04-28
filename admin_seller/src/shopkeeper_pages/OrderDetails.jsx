@@ -1,18 +1,18 @@
 // shopkeeper_pages/OrderDetails.jsx
 import { useState, useEffect, useContext } from "react";
-import { FiMenu, FiX } from "react-icons/fi";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { UserContext } from "../context/UserContext";
+import { FiCheck, FiX, FiPackage, FiUser, FiMapPin, FiClock } from "react-icons/fi";
+import PageWrapper from "../components/PageWrapper";
 
 const OrderDetails = () => {
   const { orderId } = useParams();
+  const navigate = useNavigate();
   const { user } = useContext(UserContext);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -38,107 +38,191 @@ const OrderDetails = () => {
 
   const handleUpdateStatus = async (newStatus) => {
     try {
-      await axios.put(`http://localhost:5000/api/dashboard/update-order-status/${orderId}`, {
+      console.log(`Updating order ${orderId} status to ${newStatus} for seller ${user?.seller_id}`);
+      const response = await axios.put(`http://localhost:5000/api/dashboard/update-order-status/${orderId}`, {
         status: newStatus,
         seller_id: user?.seller_id
       });
+      console.log('Update response:', response.data);
+      
       // Refresh order details
-      const response = await axios.get(`http://localhost:5000/api/dashboard/order-details/${orderId}`, {
+      const detailsResponse = await axios.get(`http://localhost:5000/api/dashboard/order-details/${orderId}`, {
         params: { seller_id: user?.seller_id }
       });
-      setOrder(response.data);
+      console.log('Updated order details:', detailsResponse.data);
+      setOrder(detailsResponse.data);
     } catch (err) {
       console.error('Error updating order status:', err);
       setError('Failed to update order status. Please try again.');
     }
   };
 
-  if (loading) return <div className="p-6 text-center">Loading...</div>;
-  if (error) return <div className="p-6 text-center text-red-500">{error}</div>;
-  if (!order) return <div className="p-6 text-center">No order found.</div>;
+  if (loading) {
+    return (
+      <PageWrapper>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+        </div>
+      </PageWrapper>
+    );
+  }
+
+  if (error) {
+    return (
+      <PageWrapper>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-red-500">{error}</div>
+        </div>
+      </PageWrapper>
+    );
+  }
+
+  if (!order) {
+    return (
+      <PageWrapper>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-gray-500">No order found.</div>
+        </div>
+      </PageWrapper>
+    );
+  }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <nav className="fixed top-0 left-0 w-full bg-white shadow-md z-20 p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-orange-500">GroceryDash</h1>
-        <div className="hidden md:flex space-x-6">
-          <Link to="/dashboard" className="block px-4 py-2 text-sm font-medium text-gray-600 hover:text-orange-600">Dashboard</Link>
-          <Link to="/products" className="block px-4 py-2 text-sm font-medium text-gray-600 hover:text-orange-600">Product Management</Link>
-          <Link to="/orders" className="block px-4 py-2 text-sm font-medium text-orange-500 font-semibold hover:text-orange-600">Order Management</Link>
-          <Link to="/customer-history" className="block px-4 py-2 text-sm font-medium text-gray-600 hover:text-orange-600">Customer Tracking</Link>
-        </div>
-        <div className="md:hidden">
-          {menuOpen ? <FiX size={24} className="cursor-pointer" onClick={() => setMenuOpen(false)} /> : <FiMenu size={24} className="cursor-pointer" onClick={() => setMenuOpen(true)} />}
-        </div>
-      </nav>
-      {menuOpen && (
-        <div className="md:hidden absolute top-14 left-0 w-full bg-white shadow-md p-4">
-          <Link to="/dashboard" className="block px-4 py-2 text-sm font-medium text-gray-600 hover:text-orange-600">Dashboard</Link>
-          <Link to="/products" className="block px-4 py-2 text-sm font-medium text-gray-600 hover:text-orange-600">Product Management</Link>
-          <Link to="/orders" className="block px-4 py-2 text-sm font-medium text-orange-500 font-semibold hover:text-orange-600">Order Management</Link>
-          <Link to="/customer-history" className="block px-4 py-2 text-sm font-medium text-gray-600 hover:text-orange-600">Customer Tracking</Link>
-        </div>
-      )}
-      <div className="mt-20 p-6">
-        <h2 className="text-2xl font-semibold text-orange-500 mb-6 text-center">Order Details</h2>
-        <div className="max-w-3xl mx-auto bg-white shadow-md rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-700 border-b pb-3 mb-4">Order Information</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <InfoRow label="Order ID" value={order.order_id} />
-            <InfoRow label="Order Date" value={order.order_date} />
-            <InfoRow label="Order Status" value={order.order_status} />
-            <InfoRow label="Payment Status" value={order.payment_status || "N/A"} />
+    <PageWrapper>
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">Order Details</h1>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => navigate(-1)}
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+              >
+                Back
+              </button>
+            </div>
           </div>
-          <h3 className="text-lg font-semibold text-gray-700 border-b pb-3 mt-6 mb-4">Product Details</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <InfoRow label="Product Name" value={order.product_name} />
-            <InfoRow label="Category" value={order.category} />
-            <InfoRow label="Subcategory" value={order.subcategory || "N/A"} />
-            <InfoRow label="Price" value={`₹${order.price}`} />
-            <InfoRow label="Quantity" value={`${order.quantity} units`} />
-            <InfoRow label="Total Price" value={`₹${order.total_price}`} />
-            <div className="col-span-2"><InfoRow label="Description" value={order.description || "No description"} /></div>
+
+          {/* Order Status Card */}
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-orange-100 rounded-full">
+                  <FiPackage className="w-6 h-6 text-orange-500" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Order #{order.order_id}</h2>
+                  <p className="text-sm text-gray-500">
+                    {new Date(order.order_date).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex space-x-4">
+                {order.order_status === 'new' && (
+                  <>
+                    <button
+                      onClick={() => handleUpdateStatus('pending')}
+                      className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center"
+                    >
+                      <FiCheck className="mr-2" />
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleUpdateStatus('cancelled')}
+                      className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors flex items-center"
+                    >
+                      <FiX className="mr-2" />
+                      Deny
+                    </button>
+                  </>
+                )}
+                {order.order_status === 'pending' && (
+                  <button
+                    onClick={() => handleUpdateStatus('Out For delivery')}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center"
+                  >
+                    <FiPackage className="mr-2" />
+                    Start Delivery
+                  </button>
+                )}
+                {order.order_status === 'Out For delivery' && (
+                  <button
+                    onClick={() => handleUpdateStatus('delivered')}
+                    className="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center"
+                  >
+                    <FiCheck className="mr-2" />
+                    Mark as Delivered
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-          <h3 className="text-lg font-semibold text-gray-700 border-b pb-3 mt-6 mb-4">Customer Details</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <InfoRow label="Customer Name" value={order.customer_name} />
-            <InfoRow label="Phone Number" value={order.phone_number || "N/A"} />
-            <div className="col-span-2"><InfoRow label="Delivery Address" value={order.delivery_address || "N/A"} /></div>
-          </div>
-          <div className="flex justify-between mt-6">
-            <button
-              onClick={() => handleUpdateStatus('Processing')}
-              className="bg-blue-500 text-white px-5 py-2 rounded-full text-sm transition hover:opacity-80"
-              disabled={order.order_status === 'Processing' || order.order_status === 'Out For Delivery' || order.order_status === 'Delivered'}
-            >
-              Processing
-            </button>
-            <button
-              onClick={() => handleUpdateStatus('Out For Delivery')}
-              className="bg-yellow-500 text-white px-5 py-2 rounded-full text-sm transition hover:opacity-80"
-              disabled={order.order_status === 'Processing' || order.order_status === 'Out For Delivery' || order.order_status === 'Delivered'}
-            >
-              Out For Delivery
-            </button>
-            <button
-              onClick={() => handleUpdateStatus('Delivered')}
-              className="bg-green-500 text-white px-5 py-2 rounded-full text-sm transition hover:opacity-80"
-              disabled={order.order_status === 'Processing' || order.order_status === 'Out For Delivery' || order.order_status === 'Delivered'}
-            >
-              Delivered
-            </button>
+
+          {/* Order Details Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Customer Information */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <FiUser className="w-6 h-6 text-blue-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Customer Information</h3>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm text-gray-500">Name</p>
+                  <p className="font-medium">{order.customer_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Phone</p>
+                  <p className="font-medium">{order.phone_number}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Delivery Address */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="p-3 bg-purple-100 rounded-full">
+                  <FiMapPin className="w-6 h-6 text-purple-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Delivery Address</h3>
+              </div>
+              <p className="text-gray-700">{order.delivery_address}</p>
+            </div>
+
+            {/* Order Summary */}
+            <div className="bg-white rounded-lg shadow-sm p-6 md:col-span-2">
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="p-3 bg-green-100 rounded-full">
+                  <FiClock className="w-6 h-6 text-green-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Order Summary</h3>
+              </div>
+              <div className="space-y-4">
+                {order.products.map((product, index) => (
+                  <div key={index} className="flex items-center justify-between py-3 border-b last:border-0">
+                    <div>
+                      <p className="font-medium">{product.name}</p>
+                      <p className="text-sm text-gray-500">
+                        {product.quantity} × ₹{product.price}
+                      </p>
+                    </div>
+                    <p className="font-medium">₹{product.total}</p>
+                  </div>
+                ))}
+                <div className="flex justify-between items-center pt-4">
+                  <p className="text-lg font-semibold">Total Amount</p>
+                  <p className="text-lg font-semibold text-orange-500">₹{order.order_total}</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </PageWrapper>
   );
 };
-
-const InfoRow = ({ label, value }) => (
-  <div className="flex flex-col">
-    <span className="text-gray-500 text-sm">{label}</span>
-    <span className="text-gray-700 font-semibold">{value}</span>
-  </div>
-);
 
 export default OrderDetails;

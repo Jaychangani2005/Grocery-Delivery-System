@@ -13,28 +13,33 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useCart } from '@/hooks/use-cart';
+import { authService } from '@/services/auth';
 
 interface NavbarProps {
-  toggleCart: () => void;
-  cartItems: BestSellerProduct[];
   isLoggedIn: boolean;
   user: { name: string; email: string } | null;
   onLogout: () => void;
   selectedAddress: string;
   onAddressChange: (address: string) => void;
+  cartItems: any[];
+  isCartOpen: boolean;
+  toggleCart: () => void;
 }
 
-const Navbar = ({
-  toggleCart,
-  cartItems,
+const Navbar: React.FC<NavbarProps> = ({
   isLoggedIn,
   user,
   onLogout,
   selectedAddress,
   onAddressChange,
-}: NavbarProps) => {
+  cartItems,
+  isCartOpen,
+  toggleCart,
+}) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
+  const { getCartQuantity } = useCart();
 
   // Handle scroll shadow effect
   useEffect(() => {

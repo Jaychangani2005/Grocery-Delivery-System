@@ -32,7 +32,7 @@ const CategoryGrid = ({ categories }: CategoryGridProps) => {
           {categories.map((category) => (
             <Link 
               key={category.id}
-              to={`/category/${category.name.toLowerCase().replace(/\s+/g, '-')}`}
+              to={`/category/${category.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
               className="group block overflow-hidden rounded-xl shadow-soft hover:shadow-lg transition-all duration-300"
             >
               <div className="relative overflow-hidden aspect-[1.2/1] md:aspect-[5/3]">

@@ -301,6 +301,66 @@ const productController = {
       console.error('Error searching products:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
+  },
+
+  // Get single product by ID
+  getProductById: async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log('Fetching product with ID:', id);
+
+      const [products] = await pool.query(`
+        SELECT 
+          p.product_id as id,
+          p.name,
+          p.product_detail as description,
+          p.price,
+          p.mrp as oldPrice,
+          p.stock,
+          pc.name as category,
+          COALESCE(AVG(r.stars), 4.5) as rating,
+          p.unit,
+          pi.image_url as image,
+          CASE 
+            WHEN p.name LIKE '%organic%' OR p.name LIKE '%Organic%' THEN 1 
+            ELSE 0 
+          END as isOrganic
+        FROM products p
+        LEFT JOIN product_categories pc ON p.category_id = pc.category_id
+        LEFT JOIN order_ratings r ON p.product_id = r.order_id
+        LEFT JOIN product_images pi ON p.product_id = pi.product_id
+        WHERE p.product_id = ?
+        GROUP BY p.product_id
+      `, [id]);
+
+      if (products.length === 0) {
+        console.log('No product found with ID:', id);
+        return res.status(404).json({ error: 'Product not found' });
+      }
+
+      const product = products[0];
+
+      // Format the response
+      const formattedProduct = {
+        id: parseInt(product.id),
+        name: product.name,
+        description: product.description,
+        price: parseFloat(product.price),
+        oldPrice: parseFloat(product.oldPrice),
+        image: product.image || `/images/placeholder.jpg`,
+        category: product.category,
+        rating: parseFloat(product.rating),
+        isOrganic: Boolean(product.isOrganic),
+        unit: product.unit,
+        stock: parseInt(product.stock)
+      };
+
+      console.log('Sending formatted product:', formattedProduct);
+      res.json(formattedProduct);
+    } catch (error) {
+      console.error('Error fetching product by ID:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
 };
 

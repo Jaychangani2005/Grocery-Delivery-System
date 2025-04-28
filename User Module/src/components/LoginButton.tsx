@@ -1,12 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { authService } from "@/services/auth";
+import { cartService } from "@/services/cart";
 import { toast } from "react-hot-toast";
 
 interface LoginButtonProps {
-  onLogin: (userData: { id: number; name: string; email: string }) => void;
+  onLogin: (user: any) => void;
+  onCartUpdate?: (cartItems: any[]) => void;
 }
 
-const LoginButton = ({ onLogin }: LoginButtonProps) => {
+const LoginButton = ({ onLogin, onCartUpdate }: LoginButtonProps) => {
   const handleQuickLogin = async () => {
     try {
       // Use a test email and password
@@ -18,6 +20,18 @@ const LoginButton = ({ onLogin }: LoginButtonProps) => {
       
       // Call the onLogin callback with complete user data including id
       onLogin(response.user);
+
+      // Fetch cart items after successful login
+      try {
+        const cartItems = await cartService.getCartItems();
+        console.log('Cart items fetched after login:', cartItems);
+        if (onCartUpdate) {
+          onCartUpdate(cartItems);
+        }
+      } catch (error) {
+        console.error("Error fetching cart:", error);
+        // Don't show error toast for cart fetch failure
+      }
 
       toast.success("Logged in successfully!");
     } catch (error) {

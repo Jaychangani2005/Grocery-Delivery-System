@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 07, 2025 at 07:56 AM
+-- Generation Time: Apr 27, 2025 at 10:27 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -148,7 +148,9 @@ CREATE TABLE `cart` (
 --
 
 INSERT INTO `cart` (`cart_id`, `user_id`, `created_at`) VALUES
-(11, 1, '2025-04-05 15:33:27');
+(11, 1, '2025-04-05 15:33:27'),
+(12, 11, '2025-04-23 17:25:54'),
+(13, 12, '2025-04-24 12:22:20');
 
 -- --------------------------------------------------------
 
@@ -164,6 +166,14 @@ CREATE TABLE `cart_items` (
   `added_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `cart_items`
+--
+
+INSERT INTO `cart_items` (`cart_item_id`, `cart_id`, `product_id`, `quantity`, `added_at`) VALUES
+(108, 13, 3, 2, '2025-04-25 08:49:11'),
+(122, 12, 71, 2, '2025-04-27 08:23:32');
+
 -- --------------------------------------------------------
 
 --
@@ -173,7 +183,16 @@ CREATE TABLE `cart_items` (
 CREATE TABLE `delivery_agents` (
   `agent_id` int(11) NOT NULL,
   `name` varchar(255) NOT NULL,
-  `vehicle_type` enum('Bike','Scooter') NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `mobilenumber` bigint(10) NOT NULL,
+  `Aadharnumber` bigint(12) NOT NULL,
+  `pancard` varchar(10) NOT NULL,
+  `Address` varchar(255) NOT NULL,
+  `city` varchar(255) NOT NULL,
+  `state` varchar(255) NOT NULL,
+  `pincode` int(6) NOT NULL,
+  `vehicle_type` enum('Bike','Scooter','car') NOT NULL,
   `license_number` varchar(20) NOT NULL,
   `status` enum('available','busy','offline') DEFAULT 'available',
   `is_approved` tinyint(1) DEFAULT 0,
@@ -184,17 +203,8 @@ CREATE TABLE `delivery_agents` (
 -- Dumping data for table `delivery_agents`
 --
 
-INSERT INTO `delivery_agents` (`agent_id`, `name`, `vehicle_type`, `license_number`, `status`, `is_approved`, `is_rejected`) VALUES
-(1, 'Aarav Patel', 'Bike', 'MH01AB1234', 'available', 1, 0),
-(2, 'Priya Sharma', 'Scooter', 'DL02CD5678', 'available', 1, 0),
-(3, 'Rohan Singh', 'Bike', 'KA03EF9012', 'available', 0, 0),
-(4, 'Neha Gupta', 'Scooter', 'TN04GH3456', 'available', 0, 0),
-(5, 'Vikram Joshi', 'Bike', 'UP05IJ7890', 'offline', 0, 1),
-(6, 'Ananya Reddy', 'Scooter', 'AP06KL1234', 'offline', 0, 1),
-(7, 'Arjun Malhotra', 'Bike', 'GJ07MN5678', 'available', 1, 0),
-(8, 'Isha Choudhary', 'Scooter', 'RJ08OP9012', 'available', 1, 0),
-(9, 'Kabir Khan', 'Bike', 'MP09QR3456', 'available', 1, 0),
-(10, 'Zoya Ansari', 'Scooter', 'HR10ST7890', 'available', 1, 0);
+INSERT INTO `delivery_agents` (`agent_id`, `name`, `email`, `password`, `mobilenumber`, `Aadharnumber`, `pancard`, `Address`, `city`, `state`, `pincode`, `vehicle_type`, `license_number`, `status`, `is_approved`, `is_rejected`) VALUES
+(11, 'Samarth ', 'samarth@gmail.com', '$2b$10$sy/GRBKsvjIwWuB7aAG1fuHySG74EgR77U0cgjrTgITTY6QdMDZkG', 9484400500, 867696116499, 'AKBPJ1122D', 'bhavnagar bahvnagar', 'bhavnafar', 'gujarat ', 364001, 'Bike', '123456780', 'available', 0, 0);
 
 -- --------------------------------------------------------
 
@@ -281,19 +291,32 @@ CREATE TABLE `orders` (
   `user_id` int(11) NOT NULL,
   `address_id` int(11) NOT NULL,
   `total` decimal(10,2) NOT NULL,
+  `subtotal` int(255) NOT NULL,
+  `deliveryfee` int(255) NOT NULL,
+  `codfee` int(255) NOT NULL,
+  `tax` int(255) NOT NULL,
   `status` enum('new','pending','confirmed','preparing','ready','delivered','cancelled','Out For delivery') DEFAULT 'new',
   `payment_method` enum('cod','online') NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `orders`
 --
 
-INSERT INTO `orders` (`order_id`, `user_id`, `address_id`, `total`, `status`, `payment_method`, `created_at`) VALUES
-(48, 1, 13, 788.00, 'Out For delivery', 'cod', '2025-04-06 17:57:54'),
-(49, 1, 13, 748.00, 'delivered', 'online', '2025-04-06 19:03:11'),
-(50, 1, 13, 788.00, 'delivered', 'cod', '2025-04-06 19:15:46');
+INSERT INTO `orders` (`order_id`, `user_id`, `address_id`, `total`, `subtotal`, `deliveryfee`, `codfee`, `tax`, `status`, `payment_method`, `created_at`) VALUES
+(62, 11, 15, 25.00, 0, 0, 0, 0, 'delivered', 'cod', '2025-04-24 11:28:43'),
+(63, 11, 15, 620.00, 0, 0, 0, 0, 'delivered', 'cod', '2025-04-24 11:29:53'),
+(64, 11, 15, 180.00, 0, 0, 0, 0, 'delivered', 'cod', '2025-04-24 11:31:56'),
+(65, 11, 15, 40.00, 0, 0, 0, 0, 'pending', 'cod', '2025-04-24 19:26:56'),
+(69, 11, 15, 40.00, 0, 0, 0, 0, 'cancelled', 'cod', '2025-04-24 19:37:22'),
+(70, 11, 15, 35.00, 0, 0, 0, 0, 'Out For delivery', 'cod', '2025-04-24 19:39:17'),
+(71, 11, 15, 600.00, 0, 0, 0, 0, 'pending', 'cod', '2025-04-24 19:41:36'),
+(72, 11, 15, 600.00, 0, 0, 0, 0, 'new', 'cod', '2025-04-24 19:43:41'),
+(73, 11, 15, 170.00, 0, 0, 0, 0, 'new', 'online', '2025-04-24 20:26:02'),
+(74, 11, 15, 1240.00, 0, 0, 0, 0, 'cancelled', 'online', '2025-04-25 07:06:45'),
+(75, 11, 15, 1290.00, 0, 0, 0, 0, 'new', 'cod', '2025-04-27 08:23:13');
 
 -- --------------------------------------------------------
 
@@ -308,6 +331,13 @@ CREATE TABLE `order_delivery` (
   `pickup_time` datetime DEFAULT NULL,
   `delivery_time` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `order_delivery`
+--
+
+INSERT INTO `order_delivery` (`delivery_id`, `order_id`, `agent_id`, `pickup_time`, `delivery_time`) VALUES
+(11, 62, 11, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -328,9 +358,19 @@ CREATE TABLE `order_items` (
 --
 
 INSERT INTO `order_items` (`order_item_id`, `order_id`, `product_id`, `quantity`, `price`) VALUES
-(54, 48, 3, 1, 600.00),
-(55, 49, 3, 1, 600.00),
-(56, 50, 3, 1, 600.00);
+(69, 62, 71, 1, 25.00),
+(70, 63, 24, 1, 620.00),
+(71, 64, 47, 1, 180.00),
+(72, 65, 79, 1, 40.00),
+(76, 69, 79, 1, 40.00),
+(77, 70, 30, 1, 35.00),
+(78, 71, 3, 1, 600.00),
+(79, 72, 3, 1, 600.00),
+(80, 73, 38, 2, 50.00),
+(81, 73, 45, 2, 35.00),
+(82, 74, 24, 2, 620.00),
+(83, 75, 15, 2, 45.00),
+(84, 75, 3, 2, 600.00);
 
 -- --------------------------------------------------------
 
@@ -365,10 +405,29 @@ CREATE TABLE `order_status_history` (
 --
 
 INSERT INTO `order_status_history` (`history_id`, `order_id`, `old_status`, `new_status`, `changed_by`, `timestamp`) VALUES
-(47, 48, NULL, 'new', 'system', '2025-04-06 17:57:54'),
-(48, 49, NULL, 'new', 'system', '2025-04-06 19:03:11'),
-(49, 50, NULL, 'new', 'system', '2025-04-06 19:15:46'),
-(50, 48, 'Out For delivery', 'Out For delivery', 'seller', '2025-04-07 01:05:39');
+(69, 62, NULL, 'new', 'system', '2025-04-24 11:28:43'),
+(70, 63, NULL, 'new', 'system', '2025-04-24 11:29:53'),
+(71, 64, NULL, 'new', 'system', '2025-04-24 11:31:56'),
+(72, 65, NULL, 'new', 'system', '2025-04-24 19:26:56'),
+(73, 69, NULL, 'new', 'system', '2025-04-24 19:37:22'),
+(74, 70, NULL, 'new', 'system', '2025-04-24 19:39:17'),
+(75, 71, NULL, 'new', 'system', '2025-04-24 19:41:36'),
+(76, 72, NULL, 'new', 'system', '2025-04-24 19:43:41'),
+(77, 73, NULL, 'new', 'system', '2025-04-24 20:26:02'),
+(78, 74, NULL, 'new', 'system', '2025-04-25 07:06:45'),
+(79, 63, 'ready', 'ready', '', '2025-04-26 07:41:37'),
+(80, 63, 'ready', 'Out For delivery', '', '2025-04-26 07:41:42'),
+(81, 63, 'Out For delivery', 'delivered', '', '2025-04-26 07:41:50'),
+(82, 62, 'ready', 'ready', '', '2025-04-26 07:42:04'),
+(83, 62, 'ready', 'Out For delivery', '', '2025-04-26 07:42:05'),
+(84, 62, 'Out For delivery', 'delivered', '', '2025-04-26 07:42:09'),
+(85, 62, 'confirmed', 'ready', '', '2025-04-26 07:43:24'),
+(86, 62, 'ready', 'Out For delivery', '', '2025-04-26 07:43:25'),
+(87, 64, 'ready', 'ready', '', '2025-04-26 09:11:20'),
+(88, 64, 'ready', 'Out For delivery', '', '2025-04-26 09:11:22'),
+(89, 64, 'Out For delivery', 'delivered', '', '2025-04-26 09:11:27'),
+(90, 62, 'Out For delivery', 'delivered', '', '2025-04-26 09:11:30'),
+(91, 75, NULL, 'new', 'system', '2025-04-27 08:23:13');
 
 -- --------------------------------------------------------
 
@@ -390,9 +449,17 @@ CREATE TABLE `payments` (
 --
 
 INSERT INTO `payments` (`payment_id`, `order_id`, `razorpay_id`, `amount`, `status`, `created_at`) VALUES
-(48, 48, 'rzp_k9vvql221', 788.00, '', '2025-04-06 17:57:54'),
-(49, 49, 'rzp_gxkizbuv0', 748.00, 'success', '2025-04-06 19:03:11'),
-(50, 50, 'rzp_mlf9l472r', 788.00, '', '2025-04-06 19:15:46');
+(62, 62, 'rzp_0xkw0ohup', 25.00, '', '2025-04-24 11:28:43'),
+(63, 63, 'rzp_l4c3oajp4', 620.00, '', '2025-04-24 11:29:53'),
+(64, 64, 'rzp_4697jkfgy', 180.00, '', '2025-04-24 11:31:56'),
+(65, 65, 'rzp_by61ka0bo', 40.00, '', '2025-04-24 19:26:56'),
+(66, 69, 'rzp_tj6it5jj5', 40.00, '', '2025-04-24 19:37:22'),
+(67, 70, 'rzp_d7mvmz0lo', 35.00, '', '2025-04-24 19:39:17'),
+(68, 71, 'rzp_o4vba2y7b', 600.00, '', '2025-04-24 19:41:36'),
+(69, 72, 'rzp_unxlwpwhi', 600.00, '', '2025-04-24 19:43:41'),
+(70, 73, 'rzp_sw5ndnivl', 170.00, 'success', '2025-04-24 20:26:02'),
+(71, 74, 'rzp_ukse4yya3', 1240.00, 'success', '2025-04-25 07:06:45'),
+(72, 75, 'rzp_zn9o7jkfu', 1290.00, '', '2025-04-27 08:23:13');
 
 -- --------------------------------------------------------
 
@@ -420,84 +487,84 @@ CREATE TABLE `products` (
 
 INSERT INTO `products` (`product_id`, `seller_id`, `name`, `product_detail`, `unit`, `price`, `mrp`, `stock`, `shelflife`, `category_id`, `subcategory_id`) VALUES
 (1, 1, 'Aashirvaad Whole Wheat Atta', 'Stone-ground atta', '5kg', 250.00, 275.00, 100, '6 months', 1, NULL),
-(2, 2, 'Fortune Chakki Fresh Atta', 'Freshly milled atta', '10kg', 480.00, 500.00, 75, '8 months', 1, NULL),
-(3, 1, 'Daawat Basmati Rice', 'Premium long grain', '5kg', 600.00, 650.00, 47, '12 months', 1, NULL),
-(4, 3, 'India Gate Basmati Rice', 'Classic basmati', '5kg', 550.00, 600.00, 60, '12 months', 1, NULL),
-(5, 3, 'Kohinoor Super Basmati', 'Aged basmati', '5kg', 700.00, 750.00, 40, '12 months', 1, NULL),
+(2, 1, 'Fortune Chakki Fresh Atta', 'Freshly milled atta', '10kg', 480.00, 500.00, 75, '8 months', 1, NULL),
+(3, 1, 'Daawat Basmati Rice', 'Premium long grain', '5kg', 600.00, 650.00, 43, '12 months', 1, NULL),
+(4, 1, 'India Gate Basmati Rice', 'Classic basmati', '5kg', 550.00, 600.00, 60, '12 months', 1, NULL),
+(5, 1, 'Kohinoor Super Basmati', 'Aged basmati', '5kg', 700.00, 750.00, 40, '12 months', 1, NULL),
 (6, 1, 'Tata Sampann Toor Dal', 'High protein dal', '1kg', 120.00, 135.00, 200, '6 months', 1, NULL),
 (7, 1, 'Tata Sampann Moong Dal', 'Split green gram', '1kg', 110.00, 125.00, 180, '6 months', 1, NULL),
-(8, 2, 'Fortune Everyday Basmati', 'Daily use rice', '5kg', 450.00, 490.00, 90, '12 months', 1, NULL),
-(9, 6, 'Rajdhani Chana Dal', 'Premium chana dal', '1kg', 95.00, 110.00, 150, '6 months', 1, NULL),
-(10, 5, 'Kohinoor Brown Rice', 'Unpolished rice', '2kg', 180.00, 200.00, 80, '12 months', 1, NULL),
-(11, 7, '24 Mantra Organic Dal', 'Certified organic', '1kg', 150.00, 170.00, 120, '6 months', 1, NULL),
-(12, 8, 'Patanjali Atta', 'Whole wheat flour', '5kg', 220.00, 240.00, 110, '6 months', 1, NULL),
-(13, 9, 'Natureland Organic Moong Dal', 'Chemical-free', '1kg', 130.00, 145.00, 70, '6 months', 1, NULL),
-(14, 10, 'Everest Red Chilli Powder', 'Hot & spicy', '200g', 55.00, 60.00, 150, '12 months', 2, NULL),
-(15, 1, 'MDH Garam Masala', 'Traditional blend', '100g', 45.00, 50.00, 200, '12 months', 2, NULL),
+(8, 1, 'Fortune Everyday Basmati', 'Daily use rice', '5kg', 450.00, 490.00, 90, '12 months', 1, NULL),
+(9, 1, 'Rajdhani Chana Dal', 'Premium chana dal', '1kg', 95.00, 110.00, 150, '6 months', 1, NULL),
+(10, 1, 'Kohinoor Brown Rice', 'Unpolished rice', '2kg', 180.00, 200.00, 80, '12 months', 1, NULL),
+(11, 1, '24 Mantra Organic Dal', 'Certified organic', '1kg', 150.00, 170.00, 119, '6 months', 1, NULL),
+(12, 1, 'Patanjali Atta', 'Whole wheat flour', '5kg', 220.00, 240.00, 110, '6 months', 1, NULL),
+(13, 1, 'Natureland Organic Moong Dal', 'Chemical-free', '1kg', 130.00, 145.00, 70, '6 months', 1, NULL),
+(14, 1, 'Everest Red Chilli Powder', 'Hot & spicy', '200g', 55.00, 60.00, 150, '12 months', 2, NULL),
+(15, 1, 'MDH Garam Masala', 'Traditional blend', '100g', 45.00, 50.00, 198, '12 months', 2, NULL),
 (16, 1, 'Catch Coriander Powder', 'Aromatic powder', '100g', 30.00, 35.00, 180, '12 months', 2, NULL),
 (17, 1, 'Tata Sampann Turmeric Powder', 'Pure haldi', '200g', 65.00, 70.00, 160, '12 months', 2, NULL),
-(18, 2, 'Fortune Sunflower Oil', 'Refined oil', '5L', 650.00, 700.00, 40, '18 months', 2, NULL),
+(18, 1, 'Fortune Sunflower Oil', 'Refined oil', '5L', 650.00, 700.00, 40, '18 months', 2, NULL),
 (19, 1, 'Saffola Gold Cooking Oil', 'Heart-healthy oil', '5L', 750.00, 800.00, 35, '18 months', 2, NULL),
 (20, 1, 'Dhara Mustard Oil', 'Kachi ghani', '1L', 180.00, 200.00, 90, '18 months', 2, NULL),
-(21, 8, 'Patanjali Desi Ghee', 'Pure cow ghee', '1L', 450.00, 500.00, 60, '12 months', 2, NULL),
+(21, 1, 'Patanjali Desi Ghee', 'Pure cow ghee', '1L', 450.00, 500.00, 60, '12 months', 2, NULL),
 (22, 1, 'Amul Pure Ghee', 'Premium quality', '1L', 480.00, 520.00, 50, '12 months', 2, NULL),
-(23, 10, 'Everest Kitchen King Masala', 'All-purpose masala', '100g', 50.00, 55.00, 170, '12 months', 2, NULL),
-(24, 1, 'Gold Winner Sunflower Oil', 'Zero cholesterol', '5L', 620.00, 670.00, 45, '18 months', 2, NULL),
+(23, 1, 'Everest Kitchen King Masala', 'All-purpose masala', '100g', 50.00, 55.00, 170, '12 months', 2, NULL),
+(24, 1, 'Gold Winner Sunflower Oil', 'Zero cholesterol', '5L', 620.00, 670.00, 42, '18 months', 2, NULL),
 (25, 1, 'Lays Classic Salted', 'Potato chips', '50g', 20.00, 25.00, 500, '3 months', 3, NULL),
 (26, 1, 'Kurkure Masala Munch', 'Corn snacks', '60g', 25.00, 30.00, 400, '4 months', 3, NULL),
-(27, 1, 'Haldiram’s Aloo Bhujia', 'Traditional snack', '200g', 45.00, 50.00, 300, '3 months', 3, NULL),
-(28, 2, 'Bingo! Mad Angles', 'Tangy triangles', '70g', 15.00, 20.00, 350, '4 months', 3, NULL),
-(29, 2, 'Pringles Original', 'Stackable chips', '110g', 100.00, 110.00, 200, '6 months', 3, NULL),
-(30, 2, 'Cornitos Nacho Chips', 'Mexican style', '75g', 35.00, 40.00, 250, '5 months', 3, NULL),
-(31, 2, 'Too Yumm Multigrain Chips', 'Healthy snacks', '60g', 30.00, 35.00, 180, '4 months', 3, NULL),
-(32, 1, 'Haldiram\'s Moong Dal', 'Crispy lentils', '150g', 40.00, 45.00, 220, '3 months', 3, NULL),
-(33, 2, 'Sunfeast Yippee Noodles', 'Instant noodles', '70g', 15.00, 20.00, 300, '6 months', 3, NULL),
-(34, 2, 'Maggi 2-Minute Noodles', 'Masala flavor', '70g', 12.00, 15.00, 400, '6 months', 3, NULL),
-(35, 8, 'Coca-Cola', '750ml PET bottle', '750ml', 50.00, 60.00, 200, '9 months', 4, NULL),
-(36, 3, 'Pepsi', '750ml PET bottle', '750ml', 50.00, 60.00, 180, '9 months', 4, NULL),
-(37, 8, 'Sprite', '750ml PET bottle', '750ml', 50.00, 60.00, 150, '9 months', 4, NULL),
-(38, 8, 'Fanta', '750ml PET bottle', '750ml', 50.00, 60.00, 120, '9 months', 4, NULL),
-(39, 8, 'Thums Up', '750ml PET bottle', '750ml', 50.00, 60.00, 170, '9 months', 4, NULL),
-(40, 3, 'Slice Mango', '1L tetra pack', '1L', 65.00, 70.00, 100, '3 months', 4, NULL),
-(41, 8, 'Maaza', '1.2L PET bottle', '1.2L', 80.00, 90.00, 90, '2 months', 4, NULL),
-(42, 9, 'Real Mixed Fruit Juice', '1L tetra pack', '1L', 110.00, 120.00, 80, '1 month', 4, NULL),
-(43, 3, 'Tropicana Orange Juice', '1L tetra pack', '1L', 120.00, 135.00, 70, '15 days', 4, NULL),
-(44, 9, 'Paper Boat Aam Panna', '250ml pouch', '250ml', 25.00, 30.00, 150, '3 months', 4, NULL),
-(45, 9, 'Appy Fizz', '250ml can', '250ml', 35.00, 40.00, 200, '6 months', 4, NULL),
+(27, 1, 'Haldiram`s Aloo Bhujia', 'Traditional snack', '200g', 45.00, 50.00, 300, '3 months', 3, NULL),
+(28, 1, 'Bingo! Mad Angles', 'Tangy triangles', '70g', 15.00, 20.00, 350, '4 months', 3, NULL),
+(29, 1, 'Pringles Original', 'Stackable chips', '110g', 100.00, 110.00, 200, '6 months', 3, NULL),
+(30, 1, 'Cornitos Nacho Chips', 'Mexican style', '75g', 35.00, 40.00, 249, '5 months', 3, NULL),
+(31, 1, 'Too Yumm Multigrain Chips', 'Healthy snacks', '60g', 30.00, 35.00, 180, '4 months', 3, NULL),
+(32, 1, 'Haldiram\`s Moong Dal', 'Crispy lentils', '150g', 40.00, 45.00, 220, '3 months', 3, NULL),
+(33, 1, 'Sunfeast Yippee Noodles', 'Instant noodles', '70g', 15.00, 20.00, 300, '6 months', 3, NULL),
+(34, 1, 'Maggi 2-Minute Noodles', 'Masala flavor', '70g', 12.00, 15.00, 400, '6 months', 3, NULL),
+(35, 1, 'Coca-Cola', '750ml PET bottle', '750ml', 50.00, 60.00, 200, '9 months', 4, NULL),
+(36, 1, 'Pepsi', '750ml PET bottle', '750ml', 50.00, 60.00, 180, '9 months', 4, NULL),
+(37, 1, 'Sprite', '750ml PET bottle', '750ml', 50.00, 60.00, 150, '9 months', 4, NULL),
+(38, 1, 'Fanta', '750ml PET bottle', '750ml', 50.00, 60.00, 118, '9 months', 4, NULL),
+(39, 1, 'Thums Up', '750ml PET bottle', '750ml', 50.00, 60.00, 170, '9 months', 4, NULL),
+(40, 1, 'Slice Mango', '1L tetra pack', '1L', 65.00, 70.00, 100, '3 months', 4, NULL),
+(41, 1, 'Maaza', '1.2L PET bottle', '1.2L', 80.00, 90.00, 90, '2 months', 4, NULL),
+(42, 1, 'Real Mixed Fruit Juice', '1L tetra pack', '1L', 110.00, 120.00, 79, '1 month', 4, NULL),
+(43, 1, 'Tropicana Orange Juice', '1L tetra pack', '1L', 120.00, 135.00, 70, '15 days', 4, NULL),
+(44, 1, 'Paper Boat Aam Panna', '250ml pouch', '250ml', 25.00, 30.00, 150, '3 months', 4, NULL),
+(45, 1, 'Appy Fizz', '250ml can', '250ml', 35.00, 40.00, 198, '6 months', 4, NULL),
 (46, 1, 'Red Bull Energy Drink', '250ml can', '250ml', 115.00, 125.00, 100, '12 months', 4, NULL),
-(47, 1, 'Tata Tea Gold', '500g pack', '500g', 180.00, 200.00, 120, '8 months', 5, NULL),
-(48, 7, 'Red Label Tea', '500g pack', '500g', 150.00, 170.00, 150, '8 months', 5, NULL),
+(47, 1, 'Tata Tea Gold', '500g pack', '500g', 180.00, 200.00, 119, '8 months', 5, NULL),
+(48, 1, 'Red Label Tea', '500g pack', '500g', 150.00, 170.00, 150, '8 months', 5, NULL),
 (49, 1, 'Taj Mahal Tea', '250g pack', '250g', 120.00, 135.00, 100, '8 months', 5, NULL),
-(50, 7, 'Lipton Green Tea', '25 bags', '25ct', 85.00, 95.00, 200, '12 months', 5, NULL),
+(50, 1, 'Lipton Green Tea', '25 bags', '25ct', 85.00, 95.00, 200, '12 months', 5, NULL),
 (51, 1, 'Tetley Green Tea', '25 bags', '25ct', 80.00, 90.00, 180, '12 months', 5, NULL),
-(52, 7, 'Bru Instant Coffee', '100g jar', '100g', 90.00, 100.00, 150, '12 months', 5, NULL),
-(53, 4, 'Nescafe Classic', '50g jar', '50g', 110.00, 120.00, 200, '12 months', 5, NULL),
-(54, 4, 'Nescafe Gold', '100g jar', '100g', 250.00, 275.00, 100, '12 months', 5, NULL),
-(55, 4, 'Davidoff Instant Coffee', '100g jar', '100g', 400.00, 450.00, 80, '12 months', 5, NULL),
-(56, 4, 'Continental Coffee', '200g pack', '200g', 150.00, 170.00, 120, '12 months', 5, NULL),
-(57, 7, 'Wagh Bakri Tea', '500g pack', '500g', 160.00, 180.00, 110, '8 months', 5, NULL),
-(58, 5, 'Britannia Bread', '400g loaf', '400g', 35.00, 40.00, 200, '3 days', 6, NULL),
-(59, 10, 'Parle-G Biscuits', '100g pack', '100g', 10.00, 12.00, 500, '3 months', 6, NULL),
-(60, 5, 'Bourbon Chocolate Cream', '150g pack', '150g', 25.00, 30.00, 300, '2 months', 6, NULL),
-(61, 5, 'Good Day Cashew Cookies', '200g pack', '200g', 30.00, 35.00, 250, '2 months', 6, NULL),
-(62, 5, 'Oreo Cookies', '150g pack', '150g', 30.00, 35.00, 400, '3 months', 6, NULL),
-(63, 10, 'Hide & Seek Fab', '100g pack', '100g', 20.00, 25.00, 350, '3 months', 6, NULL),
-(64, 5, 'Little Debbie Swiss Rolls', '6pc pack', '6pc', 50.00, 60.00, 150, '15 days', 6, NULL),
-(65, 6, 'Dairy Milk Silk', '150g bar', '150g', 90.00, 100.00, 200, '6 months', 7, NULL),
-(66, 6, '5 Star', '50g bar', '50g', 15.00, 20.00, 300, '8 months', 7, NULL),
-(67, 6, 'KitKat 4-Finger', '41.5g bar', '41.5g', 20.00, 25.00, 400, '8 months', 7, NULL),
-(68, 6, 'Munch', '30g bar', '30g', 10.00, 12.00, 500, '6 months', 7, NULL),
-(69, 6, 'Ferrero Rocher', '3pc box', '3pc', 75.00, 85.00, 150, '10 months', 7, NULL),
+(52, 1, 'Bru Instant Coffee', '100g jar', '100g', 90.00, 100.00, 150, '12 months', 5, NULL),
+(53, 1, 'Nescafe Classic', '50g jar', '50g', 110.00, 120.00, 200, '12 months', 5, NULL),
+(54, 1, 'Nescafe Gold', '100g jar', '100g', 250.00, 275.00, 100, '12 months', 5, NULL),
+(55, 1, 'Davidoff Instant Coffee', '100g jar', '100g', 400.00, 450.00, 80, '12 months', 5, NULL),
+(56, 1, 'Continental Coffee', '200g pack', '200g', 150.00, 170.00, 120, '12 months', 5, NULL),
+(57, 1, 'Wagh Bakri Tea', '500g pack', '500g', 160.00, 180.00, 110, '8 months', 5, NULL),
+(58, 1, 'Britannia Bread', '400g loaf', '400g', 35.00, 40.00, 200, '3 days', 6, NULL),
+(59, 1, 'Parle-G Biscuits', '100g pack', '100g', 10.00, 12.00, 500, '3 months', 6, NULL),
+(60, 1, 'Bourbon Chocolate Cream', '150g pack', '150g', 25.00, 30.00, 300, '2 months', 6, NULL),
+(61, 1, 'Good Day Cashew Cookies', '200g pack', '200g', 30.00, 35.00, 250, '2 months', 6, NULL),
+(62, 1, 'Oreo Cookies', '150g pack', '150g', 30.00, 35.00, 400, '3 months', 6, NULL),
+(63, 1, 'Hide & Seek Fab', '100g pack', '100g', 20.00, 25.00, 350, '3 months', 6, NULL),
+(64, 1, 'Little Debbie Swiss Rolls', '6pc pack', '6pc', 50.00, 60.00, 150, '15 days', 6, NULL),
+(65, 1, 'Dairy Milk Silk', '150g bar', '150g', 90.00, 100.00, 200, '6 months', 7, NULL),
+(66, 1, '5 Star', '50g bar', '50g', 15.00, 20.00, 290, '8 months', 7, NULL),
+(67, 1, 'KitKat 4-Finger', '41.5g bar', '41.5g', 20.00, 25.00, 400, '8 months', 7, NULL),
+(68, 1, 'Munch', '30g bar', '30g', 10.00, 12.00, 500, '6 months', 7, NULL),
+(69, 1, 'Ferrero Rocher', '3pc box', '3pc', 75.00, 85.00, 150, '10 months', 7, NULL),
 (70, 1, 'Amul Dark Chocolate', '150g bar', '150g', 80.00, 90.00, 180, '6 months', 7, NULL),
-(71, 4, 'Nestle Milkybar', '40g bar', '40g', 25.00, 30.00, 220, '8 months', 7, NULL),
-(72, 7, 'Surf Excel Detergent', '1kg pack', '1kg', 120.00, 135.00, 150, '24 months', 8, NULL),
-(73, 7, 'Ariel Matic Powder', '2kg pack', '2kg', 200.00, 220.00, 120, '24 months', 8, NULL),
-(74, 7, 'Vim Dishwash Bar', '500g', '500g', 25.00, 30.00, 300, '12 months', 8, NULL),
-(75, 7, 'Lizol Floor Cleaner', '1L bottle', '1L', 150.00, 165.00, 100, '18 months', 8, NULL),
-(76, 7, 'Harpic Toilet Cleaner', '1L bottle', '1L', 65.00, 75.00, 200, '18 months', 8, NULL),
-(77, 7, 'Dettol Antiseptic Liquid', '500ml', '500ml', 85.00, 95.00, 180, '36 months', 8, NULL),
-(78, 7, 'Odonil Room Freshener', '200g', '200g', 35.00, 40.00, 250, '24 months', 8, NULL),
-(79, 1, 'balalji simply salted potato waffer', 'Made from choicest potatoes.\r\nWith the classic salty flavour.\r\nLight and crunchy crisps.\r\nPerfect to snack to binge on any time or anywhere.', '1', 40.00, 40.00, 10, '3 month', 3, NULL);
+(71, 1, 'Nestle Milkybar', '40g bar', '40g', 25.00, 30.00, 217, '8 months', 7, NULL),
+(72, 1, 'Surf Excel Detergent', '1kg pack', '1kg', 120.00, 135.00, 150, '24 months', 8, NULL),
+(73, 1, 'Ariel Matic Powder', '2kg pack', '2kg', 200.00, 220.00, 120, '24 months', 8, NULL),
+(74, 1, 'Vim Dishwash Bar', '500g', '500g', 25.00, 30.00, 300, '12 months', 8, NULL),
+(75, 1, 'Lizol Floor Cleaner', '1L bottle', '1L', 150.00, 165.00, 100, '18 months', 8, NULL),
+(76, 1, 'Harpic Toilet Cleaner', '1L bottle', '1L', 65.00, 75.00, 200, '18 months', 8, NULL),
+(77, 1, 'Dettol Antiseptic Liquid', '500ml', '500ml', 85.00, 95.00, 180, '36 months', 8, NULL),
+(78, 1, 'Odonil Room Freshener', '200g', '200g', 35.00, 40.00, 250, '24 months', 8, NULL),
+(79, 1, 'balalji simply salted potato waffer', 'Made from choicest potatoes.\r\nWith the classic salty flavour.\r\nLight and crunchy crisps.\r\nPerfect to snack to binge on any time or anywhere.', '1', 40.00, 40.00, 8, '3 month', 3, NULL);
 
 -- --------------------------------------------------------
 
@@ -545,7 +612,7 @@ CREATE TABLE `product_images` (
 
 INSERT INTO `product_images` (`image_id`, `product_id`, `image_url`, `is_primary`) VALUES
 (1, 1, '/images/atta_rice_dal/aashirvaad_whole_wheat_atta.jpg', 1),
-(2, 2, '/images/atta_rice_dal/fortune_chakki_atta.avl', 1),
+(2, 2, '/images/atta_rice_dal/fortune_chakki_atta.jpg', 1),
 (3, 3, '/images/atta_rice_dal/daawat_basmati_rice.jpg', 1),
 (4, 4, '/images/atta_rice_dal/India_Gate_Basmati_Rice.jpg', 1),
 (5, 5, '/images/atta_rice_dal/kohinoor_super_basmati.jpg', 1),
@@ -661,16 +728,7 @@ CREATE TABLE `sellers` (
 --
 
 INSERT INTO `sellers` (`seller_id`, `store_name`, `email`, `password`, `fssai_license`, `phone`, `store_category`, `store_address`, `is_approved`, `is_rejected`) VALUES
-(1, 'FreshFarms', 'fresh@example.com', 'samarth', 'FSSAI123', '9876543210', 'Produce', 'Mumbai', 1, 0),
-(2, 'DairyKing', 'dairy@example.com', 'dairypass', 'FSSAI456', '9876543211', 'Dairy', 'Delhi', 1, 0),
-(3, 'GrainsHub', 'grains@example.com', 'grainspass', 'FSSAI789', '9876543212', 'Grains', 'Bangalore', 1, 0),
-(4, 'HealthyBites', 'healthy@example.com', 'healthypass', 'FSSAI012', '9876543213', 'Snacks', 'Chennai', 1, 0),
-(5, 'SpiceWorld', 'spice@example.com', 'spicepass', 'FSSAI345', '9876543214', 'Spices', 'Kolkata', 0, 1),
-(6, 'BeverageCo', 'beverage@example.com', 'beveragepass', 'FSSAI678', '9876543215', 'Drinks', 'Hyderabad', 1, 0),
-(7, 'OrganicLife', 'organic@example.com', 'organicpass', 'FSSAI901', '9876543216', 'Organic', 'Pune', 0, 1),
-(8, 'SweetTreats', 'sweets@example.com', 'sweetspass', 'FSSAI234', '9876543217', 'Confectionery', 'Jaipur', 1, 0),
-(9, 'TeaTime', 'tea@example.com', 'teapass', 'FSSAI567', '9876543218', 'Beverages', 'Ahmedabad', 0, 1),
-(10, 'SaltMasters', 'salt@example.com', 'saltpass', 'FSSAI890', '9876543219', 'Essentials', 'Surat', 0, 1);
+(1, 'FreshFarms', 'fresh@example.com', 'samarth', 'FSSAI123', '9876543210', 'Produce', 'Mumbai', 1, 0);
 
 -- --------------------------------------------------------
 
@@ -714,6 +772,17 @@ CREATE TABLE `seller_earnings` (
   `amount` decimal(10,2) NOT NULL,
   `settlement_date` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `seller_earnings`
+--
+
+INSERT INTO `seller_earnings` (`earning_id`, `seller_id`, `order_id`, `amount`, `settlement_date`) VALUES
+(16, 1, 73, 100.00, NULL),
+(17, 1, 73, 70.00, NULL),
+(18, 1, 74, 1240.00, NULL),
+(19, 1, 75, 90.00, NULL),
+(20, 1, 75, 1200.00, NULL);
 
 -- --------------------------------------------------------
 
@@ -801,7 +870,9 @@ INSERT INTO `users` (`user_id`, `full_name`, `email`, `password`, `created_at`, 
 (7, 'Ethan Green', 'ethan@example.com', 'ethanpass', '2025-04-01 19:07:18', 'end-user'),
 (8, 'Fiona Harris', 'fiona@example.com', 'fionapass', '2025-04-01 19:07:18', 'end-user'),
 (9, 'George Clark', 'george@example.com', 'georgepass', '2025-04-01 19:07:18', 'end-user'),
-(10, 'Hannah Lewis', 'hannah@example.com', 'hannahpass', '2025-04-01 19:07:18', 'end-user');
+(10, 'Hannah Lewis', 'hannah@example.com', 'hannahpass', '2025-04-01 19:07:18', 'end-user'),
+(11, 'Samarth ', 'samarth@gmail.com', '$2b$10$MDRTub2ZAxLjebJc/N5XYu3ZRBr3LY7c9i9yq1BF6uZwTmYqzxnFG', '2025-04-23 17:25:54', 'end-user'),
+(12, 'samrth', 'samarthbhalala@gmail.com', '$2b$10$SgF3dmNxUrbvdT/PEoigYeCKJwvxszVzEMBENHLaP0sfzTMFgKSTe', '2025-04-24 12:22:20', 'end-user');
 
 -- --------------------------------------------------------
 
@@ -838,7 +909,8 @@ INSERT INTO `user_addresses` (`address_id`, `user_id`, `address_type`, `name`, `
 (10, 8, 'Home', 'Default Name', '0000000000', 'N/A', NULL, 'N/A', 'N/A', 'N/A', 'N/A', '000000', NULL),
 (11, 9, 'Home', 'Default Name', '0000000000', 'N/A', NULL, 'N/A', 'N/A', 'N/A', 'N/A', '000000', NULL),
 (12, 10, 'Home', 'Default Name', '0000000000', 'N/A', NULL, 'N/A', 'N/A', 'N/A', 'N/A', '000000', NULL),
-(13, 1, 'Home', 'Samarth ', '9484400509', '1', '1', '1', '1', '1', '1', '364401', '');
+(14, 1, 'Home', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1'),
+(15, 11, 'Home', 'Samarth', '9484400590', '105', 'chamapa ', 'bhavnagar', 'bhavnagar', 'bhavanagr', 'gujarat', '364001', '');
 
 -- --------------------------------------------------------
 
@@ -1101,19 +1173,19 @@ ALTER TABLE `admin_actions`
 -- AUTO_INCREMENT for table `cart`
 --
 ALTER TABLE `cart`
-  MODIFY `cart_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `cart_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT for table `cart_items`
 --
 ALTER TABLE `cart_items`
-  MODIFY `cart_item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=53;
+  MODIFY `cart_item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=123;
 
 --
 -- AUTO_INCREMENT for table `delivery_agents`
 --
 ALTER TABLE `delivery_agents`
-  MODIFY `agent_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `agent_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `delivery_earnings`
@@ -1143,19 +1215,19 @@ ALTER TABLE `discount_usage`
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `order_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
+  MODIFY `order_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=76;
 
 --
 -- AUTO_INCREMENT for table `order_delivery`
 --
 ALTER TABLE `order_delivery`
-  MODIFY `delivery_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `delivery_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT for table `order_items`
 --
 ALTER TABLE `order_items`
-  MODIFY `order_item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=57;
+  MODIFY `order_item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=85;
 
 --
 -- AUTO_INCREMENT for table `order_ratings`
@@ -1167,13 +1239,13 @@ ALTER TABLE `order_ratings`
 -- AUTO_INCREMENT for table `order_status_history`
 --
 ALTER TABLE `order_status_history`
-  MODIFY `history_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
+  MODIFY `history_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=92;
 
 --
 -- AUTO_INCREMENT for table `payments`
 --
 ALTER TABLE `payments`
-  MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
+  MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=73;
 
 --
 -- AUTO_INCREMENT for table `products`
@@ -1221,7 +1293,7 @@ ALTER TABLE `seller_documents`
 -- AUTO_INCREMENT for table `seller_earnings`
 --
 ALTER TABLE `seller_earnings`
-  MODIFY `earning_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `earning_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `seller_notifications`
@@ -1245,13 +1317,13 @@ ALTER TABLE `system_config`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `user_addresses`
 --
 ALTER TABLE `user_addresses`
-  MODIFY `address_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `address_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `user_payment_methods`

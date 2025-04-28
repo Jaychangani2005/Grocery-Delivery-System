@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
 // Middleware to authenticate JWT tokens
 const authenticateToken = (req, res, next) => {
   // Get the authorization header
@@ -11,22 +13,32 @@ const authenticateToken = (req, res, next) => {
   }
 
   try {
-    // For development, we'll use a simple token check
-    // In production, you would verify the token with jwt.verify()
-    if (token.startsWith('mock-jwt-token-')) {
-      // Extract user ID from the token (for demo purposes)
-      const userId = 1; // Default to user ID 1 for testing
-      req.user = { id: userId };
-      next();
-    } else {
-      return res.status(403).json({ error: 'Invalid token' });
-    }
+    // Verify the token
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Add user info to request
+    req.user = {
+      id: decoded.userId,
+      role: decoded.role || 'user'
+    };
+    
+    next();
   } catch (error) {
     console.error('Token verification error:', error);
-    return res.status(403).json({ error: 'Invalid token' });
+    return res.status(403).json({ error: 'Invalid or expired token' });
+  }
+};
+
+// Middleware to check if user is admin
+const isAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({ error: 'Admin access required' });
   }
 };
 
 module.exports = {
-  authenticateToken
+  authenticateToken,
+  isAdmin
 }; 

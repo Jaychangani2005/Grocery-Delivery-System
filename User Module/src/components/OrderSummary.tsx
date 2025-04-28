@@ -1,142 +1,258 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { CartItem, Address } from "@/services/api";
-import { MapPin, CreditCard, Loader2 } from "lucide-react";
+import { CartItem, Address, Product } from "@/services/api";
+import { MapPin, CreditCard, Loader2, ArrowLeft, Wallet } from "lucide-react";
+import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 interface OrderSummaryProps {
-  cartItems: CartItem[];
-  selectedAddress: Address;
+  cartItems: { product: Product; quantity: number }[];
+  selectedAddress: string;
   onBack: () => void;
-  onPlaceOrder: () => void;
+  onPlaceOrder: (paymentMethod: string, orderData?: any) => Promise<void>;
   paymentMethod: string;
-  isLoading?: boolean;
+  isLoading: boolean;
+  user: { id: number; name: string; email: string } | null;
 }
 
-export default function OrderSummary({
+const OrderSummary = ({
   cartItems,
   selectedAddress,
   onBack,
   onPlaceOrder,
   paymentMethod,
-  isLoading = false,
-}: OrderSummaryProps) {
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = 40;
-  const codFee = paymentMethod === 'cod' ? 40 : 0;
-  const tax = subtotal * 0.18; // 18% tax
+  isLoading,
+  user
+}: OrderSummaryProps) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const navigate = useNavigate();
+
+  // Calculate all the required values
+  const subtotal = cartItems.reduce((sum, item) => {
+    return sum + (item.product.price * item.quantity);
+  }, 0);
+  const deliveryFee = 30;
+  const codFee = paymentMethod === 'cod' ? 30 : 0;
+  const tax = subtotal * 0.18;
   const total = subtotal + deliveryFee + codFee + tax;
 
-  const formatAddress = (address: Address) => {
-    return `${address.house_no}${address.building_name ? `, ${address.building_name}` : ''}, ${address.street}, ${address.area}, ${address.city}, ${address.state} - ${address.pincode}`;
-  };
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+    const userData = userStr ? JSON.parse(userStr) : null;
+    
+    if (!token || !userData?.id) {
+      navigate('/auth');
+      return;
+    }
+  }, [navigate]);
 
-  const getPaymentMethodLabel = (method: string) => {
-    switch (method) {
-      case 'upi':
-        return 'UPI Payment';
-      case 'wallet':
-        return 'Digital Wallet';
-      case 'cod':
-        return 'Cash on Delivery';
-      default:
-        return 'Unknown Payment Method';
+  useEffect(() => {
+    // Load Razorpay script
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  const handlePlaceOrder = async () => {
+    if (paymentMethod === 'cod') {
+      setIsProcessing(true);
+      try {
+        const orderData = {
+          userId: user?.id,
+          items: cartItems.map(item => ({
+            productId: item.product.id,
+            quantity: item.quantity,
+            price: item.product.price
+          })),
+          addressId: parseInt(selectedAddress),
+          paymentMethod: 'cod',
+          subtotal: subtotal,
+          deliveryFee: deliveryFee,
+          codFee: codFee,
+          tax: tax,
+          total: total
+        };
+        await onPlaceOrder('cod', orderData);
+        toast.success('Order placed successfully!');
+      } catch (error) {
+        console.error('Error placing order:', error);
+        toast.error('Failed to place order');
+      } finally {
+        setIsProcessing(false);
+      }
+    } else {
+      // Get Razorpay key from environment variables
+      const razorpayKey = 'rzp_test_Zh8vw3mYOkcIBE';
+      
+      if (!razorpayKey) {
+        toast.error('Payment system is not configured. Please contact support.');
+        return;
+      }
+
+      // Initialize Razorpay
+      const options = {
+        key: razorpayKey,
+        amount: total * 100, // Amount in paise
+        currency: "INR",
+        name: "ApnaKirana",
+        description: "Grocery Order Payment",
+        image: "https://your-logo-url.com/logo.png",
+        handler: async function (response: any) {
+          try {
+            setIsProcessing(true);
+            const orderData = {
+              userId: user?.id,
+              items: cartItems.map(item => ({
+                productId: item.product.id,
+                quantity: item.quantity,
+                price: item.product.price
+              })),
+              addressId: parseInt(selectedAddress),
+              paymentMethod: 'online',
+              subtotal: subtotal,
+              deliveryFee: deliveryFee,
+              codFee: 0, // No COD fee for online payments
+              tax: tax,
+              total: total
+            };
+            await onPlaceOrder('online', orderData);
+            toast.success('Payment successful! Order placed.');
+          } catch (error) {
+            console.error('Error processing payment:', error);
+            toast.error('Payment failed. Please try again.');
+          } finally {
+            setIsProcessing(false);
+          }
+        },
+        prefill: {
+          name: user?.name || "Customer Name",
+          email: user?.email || "customer@example.com",
+          contact: "9999999999"
+        },
+        theme: {
+          color: "#10B981"
+        }
+      };
+
+      try {
+        const razorpay = new (window as any).Razorpay(options);
+        razorpay.open();
+      } catch (error) {
+        console.error('Error initializing Razorpay:', error);
+        toast.error('Payment system is not available. Please try again later.');
+      }
     }
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-        <div className="p-6">
-          <h2 className="text-2xl font-semibold mb-6">Order Summary</h2>
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
 
-          <div className="space-y-6">
-            {/* Order Items */}
-            <div>
-              <h3 className="font-medium mb-3">Items</h3>
-              <div className="space-y-2">
-                {cartItems.map((item) => (
-                  <div key={item.productId} className="flex justify-between text-sm">
-                    <span>{item.product.name} x {item.quantity}</span>
-                    <span>₹{(item.price * item.quantity).toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Delivery Address */}
-            <div>
-              <h3 className="font-medium mb-2 flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Delivery Address
-              </h3>
-              <p className="text-sm text-gray-600">{formatAddress(selectedAddress)}</p>
-            </div>
-
-            {/* Payment Method */}
-            <div>
-              <h3 className="font-medium mb-2 flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
-                Payment Method
-              </h3>
-              <p className="text-sm text-gray-600">{getPaymentMethodLabel(paymentMethod)}</p>
-            </div>
-
-            {/* Bill Details */}
-            <div>
-              <h3 className="font-medium mb-3">Bill Details</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>₹{subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Delivery Fee</span>
-                  <span>₹{deliveryFee.toFixed(2)}</span>
-                </div>
-                {paymentMethod === 'cod' && (
-                  <div className="flex justify-between">
-                    <span>COD Fee</span>
-                    <span>₹{codFee.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span>Tax</span>
-                  <span>₹{tax.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-medium pt-2 border-t">
-                  <span>Total</span>
-                  <span>₹{total.toFixed(2)}</span>
-                </div>
-              </div>
+        <div className="space-y-4">
+          <div className="border-b pb-4">
+            <h3 className="font-medium mb-2">Delivery Address</h3>
+            <div className="flex items-start space-x-2">
+              <MapPin className="h-5 w-5 text-gray-500 mt-0.5" />
+              <p className="text-sm text-gray-600">{selectedAddress}</p>
             </div>
           </div>
 
-          <div className="flex gap-4 mt-8">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={onBack}
-              disabled={isLoading}
-            >
-              Back to Payment
-            </Button>
-            <Button
-              className="flex-1"
-              onClick={onPlaceOrder}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Placing Order...
-                </>
+          <div className="border-b pb-4">
+            <h3 className="font-medium mb-2">Payment Method</h3>
+            <div className="flex items-center space-x-2">
+              {paymentMethod === 'cod' ? (
+                <Wallet className="h-5 w-5 text-gray-500" />
               ) : (
-                'Place Order'
+                <CreditCard className="h-5 w-5 text-gray-500" />
               )}
-            </Button>
+              <p className="text-sm text-gray-600">
+                {paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment'}
+              </p>
+            </div>
           </div>
+
+          <div className="border-b pb-4">
+            <h3 className="font-medium mb-2">Order Items</h3>
+            <div className="space-y-2">
+              {cartItems.map((item) => (
+                <div key={item.product.id} className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium">{item.product.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {item.quantity} × ₹{item.product.price.toFixed(2)}
+                    </p>
+                  </div>
+                  <p className="text-sm font-medium">
+                    ₹{(item.product.price * item.quantity).toFixed(2)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Subtotal</span>
+              <span>₹{subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Delivery Fee</span>
+              <span>₹{deliveryFee.toFixed(2)}</span>
+            </div>
+            {codFee > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>COD Fee</span>
+                <span>₹{codFee.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm">
+              <span>Tax (18%)</span>
+              <span>₹{tax.toFixed(2)}</span>
+            </div>
+            <div className="border-t pt-2 mt-2">
+              <div className="flex justify-between font-medium">
+                <span>Total</span>
+                <span>₹{total.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex space-x-4 mt-6">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={onBack}
+            disabled={isProcessing}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <Button
+            className="flex-1"
+            onClick={handlePlaceOrder}
+            disabled={isProcessing}
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              paymentMethod === 'cod' ? 'Place Order' : 'Pay Now'
+            )}
+          </Button>
         </div>
       </div>
     </div>
   );
-} 
+};
+
+export default OrderSummary; 

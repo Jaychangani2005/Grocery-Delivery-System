@@ -65,6 +65,16 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
     return <div>Product not found.</div>;
   }
 
+  const handleAddToCart = () => {
+    if (!isAddedToCart) {
+      setIsAddedToCart(true);
+      onAddToCart(product, quantity);
+    } else {
+      onUpdateCart(product.id, quantity);
+    }
+    toggleCart();
+  };
+
   const incrementQuantity = () => {
     setQuantity((prev) => {
       const newQuantity = Math.min(prev + 1, 10);
@@ -76,24 +86,18 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
   };
 
   const decrementQuantity = () => {
-    if (quantity === 1) {
-      setIsAddedToCart(false);
-      onRemoveFromCart(product.id);
-    } else {
-      setQuantity((prev) => {
-        const newQuantity = prev - 1;
-        if (isAddedToCart) {
-          onUpdateCart(product.id, newQuantity);
-        }
-        return newQuantity;
-      });
-    }
-  };
-
-  const handleAddToCart = () => {
-    setIsAddedToCart(true);
-    onAddToCart(product, quantity);
-    toggleCart();
+    setQuantity((prev) => {
+      if (prev <= 1) {
+        setIsAddedToCart(false);
+        onRemoveFromCart(product.id);
+        return 1;
+      }
+      const newQuantity = prev - 1;
+      if (isAddedToCart) {
+        onUpdateCart(product.id, newQuantity);
+      }
+      return newQuantity;
+    });
   };
 
   const getImageUrl = (imagePath: string) => {

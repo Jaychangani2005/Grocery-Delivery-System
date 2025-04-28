@@ -1,155 +1,65 @@
-import { useState, useEffect } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import CategoryPage from "./pages/CategoryPage";
-import ProductCard from "./components/ProductCard";
-import ProductDetails from "./components/ProductDetails";
-import CartDrawer from "./components/CartDrawer";
-import { Product, CartItem, cartService, userService, orderService } from "@/services/api";
-import Auth from "./pages/Auth";
-import Orders from "./pages/Orders";
-import Addresses from "./pages/Addresses";
-import { toast } from "react-hot-toast";
-import { authService, User as AuthUser } from "@/services/auth";
-import LoginButton from "@/components/LoginButton";
-import Navbar from "@/components/Navbar";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { useState, useEffect } from 'react';
+import ProtectedRoute from './components/ProtectedRoute';
+import Auth from './pages/Auth';
+import Home from './pages/Index';
+import Orders from './pages/Orders';
+import Cart from './pages/Cart';
+import Profile from './pages/Profile';
+import Addresses from './pages/Addresses';
+import CategoryPage from './pages/CategoryPage';
+import ProductPage from './pages/ProductPage';
+import { authService } from './services/auth';
+import { orderService, userService, PlaceOrderData, Address } from './services/api';
+import { toast } from 'react-hot-toast';
+import { cartService } from './services/cart';
+import { useCart } from './hooks/use-cart';
+import Navbar from './components/Navbar';
+import LoginButton from './components/LoginButton';
 
-const queryClient = new QueryClient();
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-}
-
-interface Order {
-  id: string;
-  items: CartItem[];
-  totalAmount: number;
-  address: string;
-  date: string;
-  status: 'pending' | 'delivered' | 'cancelled';
-}
-
-interface Address {
-  address_id: number;
-  address_type: 'Home' | 'Work' | 'Hotel' | 'Other';
-  name: string;
-  phone: string;
-  house_no: string;
-  building_name?: string;
-  street: string;
-  area: string;
-  city: string;
-  state: string;
-  pincode: string;
-  landmark?: string;
-}
-
-interface Category {
-  category_id: number;
-  name: string;
-}
-
-interface ProductDetailsProps {
-  product: Product;
-  isLoggedIn: boolean;
-  onAddToCart: (product: Product, quantity: number) => Promise<void>;
-  onUpdateCart: (productId: number, quantity: number) => Promise<void>;
-  onRemoveFromCart: (productId: number) => Promise<void>;
-  cartItems: CartItem[];
-  selectedAddress: string;
-  onAddressChange: (address: string) => void;
-  addresses: Address[];
-  user: { name: string; email: string } | null;
-  onLogout: () => void;
-}
-
-const AppContent = () => {
-  const navigate = useNavigate();
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [selectedAddress, setSelectedAddress] = useState<string>("");
+function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(authService.isLoggedIn());
+  const [user, setUser] = useState(authService.getCurrentUser());
+  const [selectedAddress, setSelectedAddress] = useState('');
   const [addresses, setAddresses] = useState<Address[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [showOrderSuccess, setShowOrderSuccess] = useState(false);
-  const [showProductDetails, setShowProductDetails] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartItems, setCartItems] = useState([]);
 
-  // Initialize user state from auth service
+  // Initialize cart state when user logs in
   useEffect(() => {
-    const checkAuth = () => {
-      const isLoggedIn = authService.isLoggedIn();
-      setIsLoggedIn(isLoggedIn);
-      
-      if (isLoggedIn) {
-        const currentUser = authService.getCurrentUser();
-        setUser(currentUser);
-      }
-      
-      // Initialize selected address from localStorage
-      const savedAddress = localStorage.getItem('selectedAddress');
-      if (savedAddress) {
-        setSelectedAddress(savedAddress);
-      }
-    };
-    
-    checkAuth();
-  }, []);
-
-  // Fetch cart items when component mounts or user logs in
-  useEffect(() => {
-    const fetchCart = async () => {
-      if (isLoggedIn) {
+    const initializeCart = async () => {
+      if (isLoggedIn && user) {
         try {
-          console.log('Fetching cart items...');
-          const items = await cartService.getCart();
-          console.log('Cart items fetched:', items);
+          const items = await cartService.getCartItems();
+          console.log('Initialized cart with items:', items);
           setCartItems(items);
         } catch (error) {
-          console.error('Error fetching cart items:', error);
-          toast.error('Failed to load cart items');
+          console.error('Error initializing cart:', error);
+          setCartItems([]);
         }
       } else {
         setCartItems([]);
       }
     };
 
-    fetchCart();
-  }, [isLoggedIn]);
+    initializeCart();
+  }, [isLoggedIn, user]);
 
-  // Fetch addresses when component mounts or user logs in
+  // Fetch addresses when user is logged in
   useEffect(() => {
     const fetchAddresses = async () => {
       if (isLoggedIn) {
         try {
-          const userAddresses = await userService.getAddresses();
-          setAddresses(userAddresses);
-          
-          // If there's a saved address ID in localStorage, use it
-          const savedAddressId = localStorage.getItem('selectedAddress');
-          if (savedAddressId) {
-            setSelectedAddress(savedAddressId);
-          } else if (userAddresses.length > 0) {
-            // If no saved address but user has addresses, use the first one
-            setSelectedAddress(userAddresses[0].address_id.toString());
-            localStorage.setItem('selectedAddress', userAddresses[0].address_id.toString());
+          const addressesData = await userService.getAddresses();
+          setAddresses(addressesData);
+          // Set default address if available
+          if (addressesData.length > 0) {
+            setSelectedAddress(addressesData[0].address_id.toString());
           }
         } catch (error) {
           console.error('Error fetching addresses:', error);
+          toast.error('Failed to load addresses');
         }
       }
     };
@@ -157,248 +67,226 @@ const AppContent = () => {
     fetchAddresses();
   }, [isLoggedIn]);
 
-  // Persist authentication state to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem("isLoggedIn", isLoggedIn.toString());
-    if (user) {
-      localStorage.setItem("user", JSON.stringify(user));
-    } else {
-      localStorage.removeItem("user");
-    }
-  }, [isLoggedIn, user]);
-
-  // Persist selectedAddress to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem("selectedAddress", selectedAddress);
-  }, [selectedAddress]);
-
-  const toggleCart = () => {
-    setIsCartOpen(!isCartOpen);
-  };
-
-  const handleLogin = (userData: AuthUser) => {
-    setIsLoggedIn(true);
+  const handleLogin = (userData) => {
     setUser(userData);
-    localStorage.setItem('isLoggedIn', 'true');
-    localStorage.setItem('user', JSON.stringify(userData));
+    setIsLoggedIn(true);
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
-    setUser(null);
-    setSelectedAddress("");
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('user');
-    localStorage.removeItem('selectedAddress');
     authService.logout();
+    setUser(null);
+    setIsLoggedIn(false);
+    setSelectedAddress('');
+    setAddresses([]);
+    setCartItems([]);
   };
 
-  const handleAddressChange = (addressId: string) => {
-    setSelectedAddress(addressId);
-    localStorage.setItem('selectedAddress', addressId);
+  const handleAddressChange = (address: string) => {
+    setSelectedAddress(address);
   };
 
-  const handleAddToCart = async (product: Product, quantity: number) => {
+  const handleAddToCart = async (product, quantity) => {
     try {
-      console.log('Adding to cart:', { product, quantity });
+      if (!isLoggedIn) {
+        throw new Error('Please login to add items to cart');
+      }
       const newItem = await cartService.addToCart(product.id, quantity);
-      console.log('New cart item:', newItem);
-      setCartItems((prevItems) => {
-        const existingItem = prevItems.find((item) => item.productId === product.id);
-        console.log('Existing items:', prevItems);
-        console.log('Existing item found:', existingItem);
-        
-        if (existingItem) {
-          const updatedItems = prevItems.map((item) =>
-            item.productId === product.id
-              ? { ...item, quantity: item.quantity + quantity }
-              : item
-          );
-          console.log('Updated items:', updatedItems);
-          return updatedItems;
-        }
-        
-        const newItems = [...prevItems, newItem];
-        console.log('New items array:', newItems);
-        return newItems;
-      });
-      toast.success('Added to cart successfully!');
+      setCartItems(prev => [...prev, { product, quantity }]);
+      setIsCartOpen(true); // Open cart drawer when item is added
     } catch (error) {
       console.error('Error adding to cart:', error);
-      toast.error('Failed to add item to cart');
+      throw error;
     }
   };
 
-  const handleUpdateCart = async (productId: number, quantity: number) => {
+  const handleUpdateCart = async (productId, quantity) => {
     try {
-      const updatedItem = await cartService.updateCartItem(productId, quantity);
-      setCartItems((prevItems) =>
-        prevItems.map((item) =>
-          item.productId === productId ? updatedItem : item
+      if (!isLoggedIn) {
+        throw new Error('Please login to update cart');
+      }
+      await cartService.updateQuantity(productId, quantity);
+      setCartItems(prev => 
+        prev.map(item => 
+          item.product.id === productId 
+            ? { ...item, quantity } 
+            : item
         )
       );
     } catch (error) {
       console.error('Error updating cart:', error);
-      toast.error('Failed to update cart');
+      throw error;
     }
   };
 
-  const handleRemoveFromCart = async (productId: number) => {
+  const handleRemoveFromCart = async (productId) => {
     try {
+      if (!isLoggedIn) {
+        throw new Error('Please login to remove items from cart');
+      }
       await cartService.removeFromCart(productId);
-      setCartItems((prevItems) => prevItems.filter((item) => item.productId !== productId));
-      toast.success('Removed from cart successfully!');
+      setCartItems(prev => 
+        prev.filter(item => item.product.id !== productId)
+      );
     } catch (error) {
       console.error('Error removing from cart:', error);
-      toast.error('Failed to remove item from cart');
+      throw error;
     }
   };
 
-  const handlePlaceOrder = async () => {
-    if (!isLoggedIn) {
-      toast.error("Please login to place an order");
-      return;
-    }
-
-    if (!selectedAddress) {
-      toast.error("Please select a delivery address");
-      return;
-    }
-
-    if (cartItems.length === 0) {
-      toast.error("Your cart is empty");
-      return;
-    }
-
-    // Clear cart and show success message
-    setCartItems([]);
-    setIsCartOpen(false);
-    setShowOrderSuccess(true);
+  const toggleCart = () => {
+    setIsCartOpen(prev => !prev);
   };
 
+  const handlePlaceOrder = async (paymentMethod: string, feeComponents?: any) => {
+    if (!user || !selectedAddress) {
+      toast.error('Please select an address and ensure you are logged in');
+      return;
+    }
+
+    try {
+      // Find the selected address object
+      const selectedAddressObj = addresses.find(addr => addr.address_id.toString() === selectedAddress);
+      if (!selectedAddressObj) {
+        toast.error('Invalid address selected');
+        return;
+      }
+
+      // If feeComponents is provided, use it directly
+      if (feeComponents && 
+          typeof feeComponents.subtotal !== 'undefined' && 
+          typeof feeComponents.deliveryFee !== 'undefined' && 
+          typeof feeComponents.codFee !== 'undefined' && 
+          typeof feeComponents.tax !== 'undefined' && 
+          typeof feeComponents.total !== 'undefined') {
+        
+        // Format order data with provided fee components
+        const orderData: PlaceOrderData = {
+          userId: user.id,
+          items: cartItems.map(item => ({
+            id: item.id,
+            productId: item.product.id,
+            quantity: item.quantity,
+            price: item.product.price,
+            product: item.product
+          })),
+          addressId: selectedAddressObj.address_id,
+          paymentMethod,
+          total: feeComponents.total,
+          subtotal: feeComponents.subtotal,
+          deliveryFee: feeComponents.deliveryFee,
+          codFee: feeComponents.codFee,
+          tax: feeComponents.tax
+        };
+
+        console.log('Placing order with provided fee components:', orderData);
+        const response = await orderService.placeOrder(orderData);
+        console.log('Order placed successfully:', response);
+
+        // Clear cart and close cart drawer
+        setCartItems([]);
+        setIsCartOpen(false);
+        toast.success('Order placed successfully');
+        return;
+      }
+
+      // Otherwise calculate the values
+      const subtotal = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+      const deliveryFee = 30;
+      const codFee = paymentMethod === 'cod' ? 30 : 0;
+      const tax = subtotal * 0.18;
+      const total = subtotal + deliveryFee + codFee + tax;
+
+      // Format order data
+      const orderData: PlaceOrderData = {
+        userId: user.id,
+        items: cartItems.map(item => ({
+          id: item.id,
+          productId: item.product.id,
+          quantity: item.quantity,
+          price: item.product.price,
+          product: item.product
+        })),
+        addressId: selectedAddressObj.address_id,
+        paymentMethod,
+        total: total,
+        subtotal: subtotal,
+        deliveryFee: deliveryFee,
+        codFee: codFee,
+        tax: tax
+      };
+
+      console.log('Placing order with calculated values:', orderData);
+      const response = await orderService.placeOrder(orderData);
+      console.log('Order placed successfully:', response);
+
+      // Clear cart and close cart drawer
+      setCartItems([]);
+      setIsCartOpen(false);
+      toast.success('Order placed successfully');
+    } catch (error) {
+      console.error('Error placing order:', error);
+      toast.error('Failed to place order');
+    }
+  };
+
+  // Common props for all routes
   const commonProps = {
     cartItems,
+    onAddToCart: handleAddToCart,
+    onUpdateCart: handleUpdateCart,
+    onRemoveFromCart: handleRemoveFromCart,
+    isCartOpen,
     toggleCart,
     isLoggedIn,
     user,
     onLogout: handleLogout,
     selectedAddress,
     onAddressChange: handleAddressChange,
-    orders,
-    showOrderSuccess,
-    setShowOrderSuccess
+    onLoginClick: () => setIsCartOpen(true),
+    addresses,
+    onPlaceOrder: handlePlaceOrder
+  };
+
+  // Props for components that expect string[] for addresses
+  const addressStringProps = {
+    ...commonProps,
+    addresses: addresses.map(addr => addr.address_id.toString())
   };
 
   return (
-    <>
-      <Routes>
-        <Route path="/" element={
-          <Index
-            {...commonProps}
-            onAddToCart={handleAddToCart}
-            onUpdateCart={handleUpdateCart}
-            onRemoveFromCart={handleRemoveFromCart}
-            isCartOpen={isCartOpen}
-            onLoginClick={() => navigate('/auth')}
-            addresses={addresses}
-            onPlaceOrder={handlePlaceOrder}
-          />
-        } />
-        <Route path="/auth" element={
-          <Auth
-            onLogin={handleLogin}
-            isLoggedIn={isLoggedIn}
-          />
-        } />
-        <Route path="/orders" element={<Orders {...commonProps} />} />
-        <Route path="/addresses" element={<Addresses {...commonProps} />} />
-        <Route path="/product/:id" element={
-          <ProductDetails
-            product={selectedProduct}
-            isLoggedIn={isLoggedIn}
-            onAddToCart={handleAddToCart}
-            onUpdateCart={handleUpdateCart}
-            onRemoveFromCart={handleRemoveFromCart}
-            cartItems={cartItems}
-            selectedAddress={selectedAddress}
-            onAddressChange={handleAddressChange}
-            addresses={addresses}
-            user={user}
-            onLogout={handleLogout}
-          />
-        } />
-        <Route path="/category/:category" element={
-          <CategoryPage
-            {...commonProps}
-            onAddToCart={handleAddToCart}
-            onUpdateCart={handleUpdateCart}
-            onRemoveFromCart={handleRemoveFromCart}
-            isCartOpen={isCartOpen}
-            onLoginClick={() => navigate('/auth')}
-            addresses={addresses}
-            onPlaceOrder={handlePlaceOrder}
-          />
-        } />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      <CartDrawer
-        isOpen={isCartOpen}
-        onClose={toggleCart}
-        cartItems={cartItems}
-        updateQuantity={handleUpdateCart}
-        removeFromCart={handleRemoveFromCart}
-        selectedAddress={selectedAddress}
-        isLoggedIn={isLoggedIn}
-        onLoginClick={() => navigate('/auth')}
-        onPlaceOrder={handlePlaceOrder}
-        addresses={addresses}
-        onAddressChange={handleAddressChange}
-        userId={user?.id}
-      />
-      {showOrderSuccess && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-lg max-w-md w-full mx-4">
-            <h2 className="text-2xl font-bold text-green-600 mb-4">Order Placed Successfully!</h2>
-            <p className="text-gray-600 mb-4">Thank you for your order. We'll notify you when it's ready for delivery.</p>
-            <button
-              onClick={() => setShowOrderSuccess(false)}
-              className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors"
-            >
-              Continue Shopping
-            </button>
-          </div>
-        </div>
-      )}
-      <div className="fixed top-4 right-4 z-50">
-        {!isLoggedIn && (
-          <LoginButton onLogin={handleLogin} />
-        )}
+    <Router>
+      <div className="min-h-screen bg-gray-50">
+        <Toaster position="top-right" />
+        <Navbar {...commonProps} />
+        <Routes>
+          <Route path="/" element={<Home {...commonProps} />} />
+          <Route path="/auth" element={<Auth onLogin={handleLogin} isLoggedIn={isLoggedIn} />} />
+          <Route path="/orders" element={
+            <ProtectedRoute isLoggedIn={isLoggedIn}>
+              <Orders {...commonProps} />
+            </ProtectedRoute>
+          } />
+          <Route path="/cart" element={
+            <ProtectedRoute isLoggedIn={isLoggedIn}>
+              <Cart {...commonProps} />
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute isLoggedIn={isLoggedIn}>
+              <Profile {...commonProps} />
+            </ProtectedRoute>
+          } />
+          <Route path="/addresses" element={
+            <ProtectedRoute isLoggedIn={isLoggedIn}>
+              <Addresses {...addressStringProps} />
+            </ProtectedRoute>
+          } />
+          <Route path="/category/:category" element={<CategoryPage {...commonProps} />} />
+          <Route path="/product/:productId" element={<ProductPage {...commonProps} />} />
+        </Routes>
       </div>
-      <Navbar
-        toggleCart={toggleCart}
-        cartItems={cartItems}
-        isLoggedIn={isLoggedIn}
-        user={user}
-        onLogout={handleLogout}
-        selectedAddress={selectedAddress}
-        onAddressChange={handleAddressChange}
-      />
-    </>
+    </Router>
   );
-};
-
-const App = () => {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
-};
+}
 
 export default App;

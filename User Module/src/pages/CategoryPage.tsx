@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Product, productService } from "@/services/api";
 import BestSellerCard from "@/components/BestSellerCard";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb";
 import { Loader2 } from "lucide-react";
+import CartDrawer from "@/components/CartDrawer";
 
 interface CategoryPageProps {
   cartItems: { product: Product; quantity: number }[];
@@ -21,7 +22,7 @@ interface CategoryPageProps {
   onAddressChange: (address: string) => void;
   onLoginClick: () => void;
   addresses: string[];
-  onPlaceOrder: () => void;
+  onPlaceOrder: (paymentMethod: string, feeComponents?: any) => void;
 }
 
 const CategoryPage = ({
@@ -45,6 +46,8 @@ const CategoryPage = ({
   const searchQuery = searchParams.get('search');
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -72,6 +75,7 @@ const CategoryPage = ({
         }
 
         setProducts(data);
+        setLoaded(true);
       } catch (error) {
         console.error('Error fetching products:', error);
       } finally {
@@ -94,6 +98,10 @@ const CategoryPage = ({
     ).join(' ') : '';
   };
 
+  const handleProductClick = (productId: number) => {
+    navigate(`/product/${productId}`);
+  };
+
   const pageTitle = getPageTitle();
 
   return (
@@ -106,6 +114,7 @@ const CategoryPage = ({
         onLogout={onLogout}
         selectedAddress={selectedAddress}
         onAddressChange={onAddressChange}
+        isCartOpen={isCartOpen}
       />
       
       <main className="flex-grow container mx-auto px-4 py-8">
@@ -127,19 +136,30 @@ const CategoryPage = ({
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) : products.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {products.map((product) => (
-              <BestSellerCard
-                key={product.id}
-                product={product}
-                onAddToCart={onAddToCart}
-                onUpdateCart={onUpdateCart}
-                onRemoveFromCart={onRemoveFromCart}
-                isInCart={cartItems.some(item => item.product.id === product.id)}
-                cartQuantity={cartItems.find(item => item.product.id === product.id)?.quantity || 0}
-                toggleCart={toggleCart}
-              />
-            ))}
+          <div className="relative">
+            <div className="flex space-x-3 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {products.map((product, index) => (
+                <div
+                  key={product.id}
+                  className={`flex-none snap-start w-[45%] sm:w-[30%] md:w-[23%] lg:w-[19%] ${
+                    loaded ? "translate-y-0 opacity-100" : "translate-y-0 opacity-0"
+                  }`}
+                  style={{ transitionDelay: `${index * 50}ms` }}
+                >
+                  <BestSellerCard
+                    product={product}
+                    onAddToCart={onAddToCart}
+                    onUpdateCart={onUpdateCart}
+                    onRemoveFromCart={onRemoveFromCart}
+                    isInCart={cartItems.some(item => item.product.id === product.id)}
+                    cartQuantity={cartItems.find(item => item.product.id === product.id)?.quantity || 0}
+                    toggleCart={toggleCart}
+                    onClick={() => handleProductClick(product.id)}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="text-center py-12">
@@ -153,6 +173,22 @@ const CategoryPage = ({
       </main>
 
       <Footer />
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={toggleCart}
+        cartItems={cartItems.map(item => ({
+          ...item,
+          product: item.product
+        }))}
+        updateQuantity={onUpdateCart}
+        removeFromCart={onRemoveFromCart}
+        selectedAddress={selectedAddress}
+        isLoggedIn={isLoggedIn}
+        onLoginClick={onLoginClick}
+        onPlaceOrder={onPlaceOrder}
+        addresses={addresses}
+        onAddressChange={onAddressChange}
+      />
     </div>
   );
 };

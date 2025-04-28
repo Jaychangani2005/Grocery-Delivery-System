@@ -35,7 +35,8 @@ const CancelOrders = () => {
   }, [user?.seller_id]);
 
   const handleViewOrder = (orderId) => {
-    navigate(`/order-details/${orderId}`);
+    const cleanOrderId = String(orderId).replace('#', '');
+    navigate(`/order-details/${cleanOrderId}`);
   };
 
   if (loading) return (
@@ -93,8 +94,8 @@ const CancelOrders = () => {
                     <div className="p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <h4 className="text-sm font-medium text-gray-900">Order #{order.id}</h4>
-                          <p className="text-sm text-gray-500">{order.customer_name}</p>
+                          <h4 className="text-sm font-medium text-gray-900">Order #{String(order.id).replace('#', '')}</h4>
+                          <p className="text-sm text-gray-500">{order.customer}</p>
                         </div>
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                           {order.status}
@@ -116,6 +117,12 @@ const CancelOrders = () => {
                             })}
                           </span>
                         </div>
+                        {order.details && (
+                          <div className="text-sm">
+                            <span className="text-gray-500">Items:</span>
+                            <p className="text-gray-900 mt-1">{order.details}</p>
+                          </div>
+                        )}
                       </div>
 
                       <button

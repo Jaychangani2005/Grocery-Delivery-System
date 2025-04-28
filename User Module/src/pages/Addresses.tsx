@@ -23,15 +23,17 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { userService } from "@/services/api";
+import { toast } from 'react-hot-toast';
 
 interface AddressesProps {
-  cartItems: BestSellerProduct[];
-  toggleCart: () => void;
   isLoggedIn: boolean;
   user: { name: string; email: string } | null;
   onLogout: () => void;
-  selectedAddress: string;
+  addresses: string[];
   onAddressChange: (address: string) => void;
+  cartItems: any[];
+  isCartOpen: boolean;
+  toggleCart: () => void;
 }
 
 interface Address {
@@ -79,163 +81,185 @@ const AddressForm = ({ onClose, address, onSubmit }: {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-4">
-        <div>
-          <Label>Address Type</Label>
-          <Select
-            value={formData.address_type}
-            onValueChange={(value) => setFormData({ ...formData, address_type: value as Address['address_type'] })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select address type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Home">Home</SelectItem>
-              <SelectItem value="Work">Work</SelectItem>
-              <SelectItem value="Hotel">Hotel</SelectItem>
-              <SelectItem value="Other">Other</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div>
-          <Label>Full Name</Label>
-          <Input
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="Enter your full name"
-            required
-          />
-        </div>
-
-        <div>
-          <Label>Phone Number</Label>
-          <Input
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            placeholder="Enter your phone number"
-            required
-          />
-        </div>
-
-        <div>
-          <Label>House/Flat No.</Label>
-          <Input
-            value={formData.house_no}
-            onChange={(e) => setFormData({ ...formData, house_no: e.target.value })}
-            placeholder="Enter house/flat number"
-            required
-          />
-        </div>
-
-        <div>
-          <Label>Building Name (Optional)</Label>
-          <Input
-            value={formData.building_name}
-            onChange={(e) => setFormData({ ...formData, building_name: e.target.value })}
-            placeholder="Enter building name"
-          />
-        </div>
-
-        <div>
-          <Label>Street</Label>
-          <Input
-            value={formData.street}
-            onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-            placeholder="Enter street name"
-            required
-          />
-        </div>
-
-        <div>
-          <Label>Area/Locality</Label>
-          <Input
-            value={formData.area}
-            onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-            placeholder="Enter area/locality"
-            required
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+    <div className="max-h-[80vh] overflow-y-auto pr-2">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
           <div>
-            <Label>City</Label>
+            <Label>Address Type</Label>
+            <Select
+              value={formData.address_type}
+              onValueChange={(value) => setFormData({ ...formData, address_type: value as Address['address_type'] })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select address type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Home">Home</SelectItem>
+                <SelectItem value="Work">Work</SelectItem>
+                <SelectItem value="Hotel">Hotel</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Full Name</Label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Enter your full name"
+                required
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <Label>Phone Number</Label>
+              <Input
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="Enter your phone number"
+                required
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>House/Flat No.</Label>
+              <Input
+                value={formData.house_no}
+                onChange={(e) => setFormData({ ...formData, house_no: e.target.value })}
+                placeholder="Enter house/flat number"
+                required
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <Label>Building Name (Optional)</Label>
+              <Input
+                value={formData.building_name}
+                onChange={(e) => setFormData({ ...formData, building_name: e.target.value })}
+                placeholder="Enter building name"
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label>Street</Label>
             <Input
-              value={formData.city}
-              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              placeholder="Enter city"
+              value={formData.street}
+              onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+              placeholder="Enter street name"
               required
+              className="w-full"
             />
           </div>
+
           <div>
-            <Label>State</Label>
+            <Label>Area/Locality</Label>
             <Input
-              value={formData.state}
-              onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-              placeholder="Enter state"
+              value={formData.area}
+              onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+              placeholder="Enter area/locality"
               required
+              className="w-full"
             />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>City</Label>
+              <Input
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                placeholder="Enter city"
+                required
+                className="w-full"
+              />
+            </div>
+            <div>
+              <Label>State</Label>
+              <Input
+                value={formData.state}
+                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                placeholder="Enter state"
+                required
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>PIN Code</Label>
+              <Input
+                value={formData.pincode}
+                onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                placeholder="Enter PIN code"
+                required
+                className="w-full"
+              />
+            </div>
+            <div>
+              <Label>Landmark (Optional)</Label>
+              <Input
+                value={formData.landmark}
+                onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
+                placeholder="Enter nearby landmark"
+                className="w-full"
+              />
+            </div>
           </div>
         </div>
 
-        <div>
-          <Label>PIN Code</Label>
-          <Input
-            value={formData.pincode}
-            onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-            placeholder="Enter PIN code"
-            required
-          />
+        <div className="flex justify-end gap-4 pt-4 sticky bottom-0 bg-white border-t">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit">{address ? 'Update Address' : 'Save Address'}</Button>
         </div>
-
-        <div>
-          <Label>Landmark (Optional)</Label>
-          <Input
-            value={formData.landmark}
-            onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
-            placeholder="Enter nearby landmark"
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-end gap-4 pt-4">
-        <Button type="button" variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit">{address ? 'Update Address' : 'Save Address'}</Button>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 };
 
 const Addresses: React.FC<AddressesProps> = ({
-  cartItems,
-  toggleCart,
   isLoggedIn,
   user,
   onLogout,
-  selectedAddress,
+  addresses,
   onAddressChange,
+  cartItems,
+  isCartOpen,
+  toggleCart,
 }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addressesList, setAddressesList] = useState<Address[]>([]);
   const [selectedAddressForEdit, setSelectedAddressForEdit] = useState<Address | undefined>();
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState<string>('');
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      navigate("/auth");
-      return;
-    }
     fetchAddresses();
-  }, [isLoggedIn, navigate]);
+  }, []);
 
   const fetchAddresses = async () => {
     try {
+      setIsLoading(true);
       const response = await userService.getAddresses();
-      setAddresses(response);
+      setAddressesList(response);
+      if (response.length > 0) {
+        const firstAddress = formatAddress(response[0]);
+        setSelectedAddress(firstAddress);
+        onAddressChange(firstAddress);
+      }
     } catch (error) {
       console.error('Error fetching addresses:', error);
       toast({
@@ -243,10 +267,17 @@ const Addresses: React.FC<AddressesProps> = ({
         description: "Failed to fetch addresses",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const formatAddress = (address: Address): string => {
+    return `${address.address_type} - ${address.name}, ${address.house_no}, ${address.street}, ${address.area}, ${address.city}, ${address.state} - ${address.pincode}`;
+  };
+
   const handleAddAddress = async (data: Omit<Address, 'address_id'>) => {
+    setIsLoading(true);
     try {
       await userService.addAddress(data);
       toast({
@@ -262,6 +293,8 @@ const Addresses: React.FC<AddressesProps> = ({
         description: "Failed to add address",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -323,13 +356,14 @@ const Addresses: React.FC<AddressesProps> = ({
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar
-        toggleCart={toggleCart}
-        cartItems={cartItems}
         isLoggedIn={isLoggedIn}
         user={user}
         onLogout={onLogout}
         selectedAddress={selectedAddress}
         onAddressChange={onAddressChange}
+        cartItems={cartItems}
+        isCartOpen={isCartOpen}
+        toggleCart={toggleCart}
       />
 
       <main className="flex-grow container mx-auto px-4 py-8 mt-16">
@@ -360,7 +394,7 @@ const Addresses: React.FC<AddressesProps> = ({
             </Dialog>
           </div>
 
-          {addresses.length === 0 ? (
+          {addressesList.length === 0 ? (
             <div className="text-center py-8">
               <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-1">
@@ -378,7 +412,7 @@ const Addresses: React.FC<AddressesProps> = ({
             </div>
           ) : (
             <div className="space-y-4">
-              {addresses.map((address) => (
+              {addressesList.map((address) => (
                 <div
                   key={address.address_id}
                   className="bg-white rounded-lg shadow-sm border p-4 hover:shadow-md transition-shadow"

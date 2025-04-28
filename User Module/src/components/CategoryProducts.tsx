@@ -5,6 +5,7 @@ import BestSellerCard from "./BestSellerCard";
 import CartDrawer from "./CartDrawer";
 import { Product, CartItem, productService } from "@/services/api";
 import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 interface CategoryProductsProps {
   categoryId: string | number;  // Allow both string and number
@@ -40,6 +41,7 @@ const CategoryProducts = ({
   const [loaded, setLoaded] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -51,7 +53,7 @@ const CategoryProducts = ({
         console.log('Fetched products:', categoryProducts);
         // Only set products if there are any available with stock
         const availableProducts = categoryProducts.filter(p => p.stock > 0);
-        setProducts(availableProducts.slice(0, 8));
+        setProducts(availableProducts); // Show all available products
       } catch (error) {
         console.error('Error fetching products:', error);
         toast.error('Failed to load products');
@@ -76,6 +78,10 @@ const CategoryProducts = ({
   const getCartQuantity = (productId: number) => {
     const item = cartItems.find(item => item.productId === productId);
     return item ? item.quantity : 0;
+  };
+
+  const handleProductClick = (productId: number) => {
+    navigate(`/product/${productId}`);
   };
 
   if (isLoading) {
@@ -134,6 +140,7 @@ const CategoryProducts = ({
                   isInCart={isProductInCart(product.id)}
                   cartQuantity={getCartQuantity(product.id)}
                   toggleCart={toggleCart}
+                  onClick={() => handleProductClick(product.id)}
                 />
               </div>
             ))}

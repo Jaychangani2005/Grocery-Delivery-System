@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useState, useEffect } from "react";
 import { format, addDays, addHours } from "date-fns";
-import { CartItem, Address, orderService } from "@/services/api";
+import { CartItem, Address, orderService, Product } from "@/services/api";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import OrderSummary from "./OrderSummary";
@@ -29,14 +29,14 @@ import PaymentMethod from "./PaymentMethod";
 interface CartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  cartItems: CartItem[];
+  cartItems: { product: Product; quantity: number }[];
   updateQuantity: (productId: number, quantity: number) => void;
   removeFromCart: (productId: number) => void;
   selectedAddress: string;
   isLoggedIn: boolean;
   onLoginClick: () => void;
-  onPlaceOrder: () => void;
-  addresses: Address[];
+  onPlaceOrder: (paymentMethod: string, orderData: any) => void;
+  addresses: string[];
   onAddressChange: (address: string) => void;
   userId?: number;
 }
@@ -50,56 +50,25 @@ const CartDrawer = ({
   selectedAddress,
   isLoggedIn,
   onLoginClick,
-  onPlaceOrder: onPlaceOrderProp,
-  addresses = [],
+  onPlaceOrder,
+  addresses,
   onAddressChange,
   userId,
 }: CartDrawerProps) => {
+  const [isLoading, setIsLoading] = useState(false);
   const [showOrderSummary, setShowOrderSummary] = useState(false);
-  const [showPaymentMethod, setShowPaymentMethod] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'cod' | 'online'>('cod');
   const navigate = useNavigate();
   
-  const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = 40;
-  const codFee = selectedPaymentMethod === 'cod' ? 40 : 0;
-  const tax = total * 0.18;
-  const finalTotal = total + deliveryFee + codFee + tax;
-
-  const getImageUrl = (imagePath: string) => {
-    if (!imagePath) return "https://placehold.co/300x300/e2e8f0/1e293b?text=No+Image";
-    if (imagePath.startsWith('http')) return imagePath;
-    // If the image path is relative, prepend the backend URL
-    return `http://localhost:5000${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
+  const handleQuantityChange = (productId: number, newQuantity: number) => {
+    if (newQuantity < 1) {
+      removeFromCart(productId);
+    } else {
+      updateQuantity(productId, newQuantity);
+    }
   };
 
-  // Format address for display
-  const formatAddress = (address: Address) => {
-    if (!address) return '';
-    return `${address.house_no}${address.building_name ? `, ${address.building_name}` : ''}, ${address.street}, ${address.area}, ${address.city}, ${address.state} - ${address.pincode}`;
-  };
-
-  const handleProceedToPayment = () => {
-    setShowPaymentMethod(true);
-  };
-
-  const handleBackToAddress = () => {
-    setShowPaymentMethod(false);
-  };
-
-  const handleProceedToSummary = (method: string) => {
-    setSelectedPaymentMethod(method);
-    setShowPaymentMethod(false);
-    setShowOrderSummary(true);
-  };
-
-  const handleBackToPayment = () => {
-    setShowOrderSummary(false);
-    setShowPaymentMethod(true);
-  };
-
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = async (paymentMethod: string) => {
     if (!isLoggedIn) {
       onLoginClick();
       return;
@@ -110,40 +79,69 @@ const CartDrawer = ({
       return;
     }
 
-    if (!userId) {
-      toast.error("User ID is missing. Please log in again.");
-      return;
-    }
-
+    setIsLoading(true);
     try {
-      setIsPlacingOrder(true);
+      // Calculate all the required values
+      const subtotal = cartItems.reduce((sum, item) => {
+        return sum + (item.product.price * item.quantity);
+      }, 0);
+      const deliveryFee = 30;
+      const codFee = selectedPaymentMethod === 'cod' ? 30 : 0;
+      const tax = subtotal * 0.18;
+      const finalTotal = subtotal + deliveryFee + codFee + tax;
+
       const orderData = {
         userId: userId,
-        items: cartItems,
+        items: cartItems.map(item => ({
+          id: item.product.id,
+          productId: item.product.id,
+          quantity: item.quantity,
+          price: item.product.price,
+          product: item.product
+        })),
         addressId: parseInt(selectedAddress),
-        paymentMethod: selectedPaymentMethod,
+        paymentMethod: paymentMethod,
+        subtotal: subtotal,
+        deliveryFee: deliveryFee,
+        codFee: codFee,
+        tax: tax,
         total: finalTotal
       };
 
-      console.log("Sending order data:", orderData);
-      const response = await orderService.placeOrder(orderData);
-      
-      toast.success("Order placed successfully!");
-      onPlaceOrderProp();
+      await onPlaceOrder(paymentMethod, orderData);
       setShowOrderSummary(false);
-      setShowPaymentMethod(false);
-    onClose();
-      navigate('/orders'); // Redirect to orders page
+      onClose();
     } catch (error) {
       console.error('Error placing order:', error);
-      toast.error("Failed to place order. Please try again.");
+      toast.error("Failed to place order");
     } finally {
-      setIsPlacingOrder(false);
+      setIsLoading(false);
     }
   };
 
-  const selectedAddressObj = selectedAddress 
-    ? addresses.find(addr => addr.address_id?.toString() === selectedAddress)
+  const total = cartItems.reduce((sum, item) => {
+    return sum + (item.product.price * item.quantity);
+  }, 0);
+  const deliveryFee = selectedPaymentMethod === 'cod' ? 30 : 0;
+  const codFee = selectedPaymentMethod === 'cod' ? 30 : 0;
+  const tax = total * 0.18;
+  const finalTotal = total + deliveryFee + codFee + tax;
+
+  const getImageUrl = (imagePath: string) => {
+    if (!imagePath) return "https://placehold.co/300x300/e2e8f0/1e293b?text=No+Image";
+    if (imagePath.startsWith('http')) return imagePath;
+    const cleanPath = imagePath.replace(/^\/+/, '');
+    return `http://localhost:5000/${cleanPath}`;
+  };
+
+  // Format address for display
+  const formatAddress = (address: Address) => {
+    if (!address) return '';
+    return `${address.house_no}${address.building_name ? `, ${address.building_name}` : ''}, ${address.street}, ${address.area}, ${address.city}, ${address.state} - ${address.pincode}`;
+  };
+
+  const selectedAddressObj = selectedAddress && addresses.length > 0
+    ? addresses.find(addr => addr && addr.address_id && addr.address_id.toString() === selectedAddress)
     : undefined;
 
   // Early return if not logged in
@@ -162,12 +160,11 @@ const CartDrawer = ({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Cart items */}
-          {cartItems.map((item) => (
-                    <div key={item.productId} className="flex items-center gap-4">
-              <img
+                  {cartItems.map((item) => (
+                    <div key={item.product.id} className="flex items-center gap-4">
+                      <img
                         src={getImageUrl(item.product.image)}
-                alt={item.product.name}
+                        alt={item.product.name}
                         className="w-20 h-20 object-cover rounded"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
@@ -175,22 +172,22 @@ const CartDrawer = ({
                         }}
                       />
                       <div className="flex-1">
-                <h3 className="font-medium">{item.product.name}</h3>
-                        <p className="text-sm text-gray-500">₹{item.price.toFixed(2)}</p>
+                        <h3 className="font-medium">{item.product.name}</h3>
+                        <p className="text-sm text-gray-500">₹{item.product.price.toFixed(2)}</p>
                         <div className="flex items-center gap-2 mt-2">
-                  <Button
-                    variant="outline"
+                          <Button
+                            variant="outline"
                             size="sm"
-                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            onClick={() => handleQuantityChange(item.product.id, item.quantity - 1)}
                             disabled={item.quantity <= 1}
                           >
                             <Minus className="h-4 w-4" />
-                  </Button>
-                  <span className="w-8 text-center">{item.quantity}</span>
-                  <Button
-                    variant="outline"
+                          </Button>
+                          <span className="w-8 text-center">{item.quantity}</span>
+                          <Button
+                            variant="outline"
                             size="sm"
-                    onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                            onClick={() => handleQuantityChange(item.product.id, item.quantity + 1)}
                             disabled={item.quantity >= 10}
                           >
                             <Plus className="h-4 w-4" />
@@ -198,11 +195,11 @@ const CartDrawer = ({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => removeFromCart(item.productId)}
+                            onClick={() => removeFromCart(item.product.id)}
                             className="text-red-500 hover:text-red-600"
                           >
                             Remove
-                  </Button>
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -219,173 +216,194 @@ const CartDrawer = ({
                 Login to Checkout
               </Button>
             </div>
-        </div>
+          </div>
         </SheetContent>
       </Sheet>
     );
   }
 
   return (
-    <>
-      <div
-        className={`fixed inset-0 bg-black bg-opacity-50 z-50 transition-opacity ${
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
-      >
-        <div
-          className={`fixed right-0 top-0 h-full w-full max-w-md bg-white dark:bg-gray-800 shadow-xl transform transition-transform ${
-            isOpen ? "translate-x-0" : "translate-x-full"
-          }`}
-        >
-          <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Shopping Cart</h2>
-              <Button variant="ghost" size="icon" onClick={onClose}>
-                <X className="h-5 w-5" />
-      </Button>
-          </div>
+    <div
+      className={`fixed inset-y-0 right-0 w-full md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out z-50 ${
+        isOpen ? "translate-x-0" : "translate-x-full"
+      }`}
+    >
+      <div className="h-full flex flex-col">
+        <div className="p-4 border-b flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Shopping Cart</h2>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
-              {cartItems.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">Your cart is empty</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {cartItems.map((item) => (
-                    <div key={item.productId} className="flex items-center gap-4">
-                      <img
-                        src={getImageUrl(item.product.image)}
-                        alt={item.product.name}
-                        className="w-20 h-20 object-cover rounded"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = "https://placehold.co/300x300/e2e8f0/1e293b?text=No+Image";
-                        }}
-                      />
-                      <div className="flex-1">
-                        <h3 className="font-medium">{item.product.name}</h3>
-                        <p className="text-sm text-gray-500">₹{item.price.toFixed(2)}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                            disabled={item.quantity <= 1}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="w-8 text-center">{item.quantity}</span>
-        <Button 
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                            disabled={item.quantity >= 10}
-                          >
-                            <Plus className="h-4 w-4" />
-        </Button>
-      <Button
-        variant="ghost"
-                            size="sm"
-                            onClick={() => removeFromCart(item.productId)}
-                            className="text-red-500 hover:text-red-600"
-      >
-                            Remove
-      </Button>
-              </div>
-                  </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              </div>
-
-            <div className="border-t p-4">
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>₹{total.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Delivery Fee</span>
-                  <span>₹{deliveryFee.toFixed(2)}</span>
-                </div>
-                {selectedPaymentMethod === 'cod' && (
-                  <div className="flex justify-between">
-                    <span>COD Fee</span>
-                    <span>₹{codFee.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span>Tax (18%)</span>
-                  <span>₹{tax.toFixed(2)}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between font-bold">
-                  <span>Total</span>
-                  <span>₹{finalTotal.toFixed(2)}</span>
-              </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Delivery Address</label>
-                  {addresses.length > 0 ? (
-                    <select
-                      value={selectedAddress || ""}
-                      onChange={(e) => onAddressChange(e.target.value)}
-                      className="w-full p-2 border rounded"
-                    >
-                      <option value="">Select an address</option>
-                      {addresses.map((address, index) => (
-                        <option 
-                          key={`address-${address.address_id || `temp-${index}`}`} 
-                          value={address.address_id?.toString() || ""}
-                        >
-                          {formatAddress(address)}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="text-center py-4 border rounded">
-                      <p className="text-gray-500 mb-2">No addresses saved</p>
-                      <Link to="/addresses" className="text-primary hover:underline flex items-center justify-center gap-1">
-                        <PlusCircle className="h-4 w-4" />
-                        Add a new address
-                      </Link>
-                </div>
-              )}
-                </div>
-
-        <Button 
-                  className="w-full"
-                  onClick={handleProceedToPayment}
-                  disabled={!selectedAddress || cartItems.length === 0}
+        <div className="flex-1 overflow-y-auto p-4">
+          {cartItems.length === 0 ? (
+            <div className="text-center py-8">
+              <ShoppingCart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-1">
+                Your cart is empty
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Add items to your cart to continue shopping
+              </p>
+              <Button onClick={onClose}>Continue Shopping</Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {cartItems.map((item) => (
+                <div
+                  key={item.product.id}
+                  className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg"
                 >
-                  Proceed to Payment
-      </Button>
+                  <div className="flex-shrink-0 w-20 h-20">
+                    <img
+                      src={getImageUrl(item.product.image)}
+                      alt={item.product.name}
+                      className="w-full h-full object-cover rounded"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "https://placehold.co/300x300/e2e8f0/1e293b?text=No+Image";
+                      }}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium text-gray-900">
+                      {item.product.name}
+                    </h3>
+                    <p className="text-sm text-gray-500">{item.product.unit}</p>
+                    <div className="flex items-center mt-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleQuantityChange(item.product.id, item.quantity - 1)}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-8 text-center">{item.quantity}</span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleQuantityChange(item.product.id, item.quantity + 1)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium text-gray-900">
+                      ₹{(item.product.price * item.quantity).toFixed(2)}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700"
+                      onClick={() => removeFromCart(item.product.id)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {cartItems.length > 0 && (
+          <div className="border-t p-4">
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium">Delivery Address</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/addresses')}
+                  className="text-primary"
+                >
+                  <MapPin className="h-4 w-4 mr-1" />
+                  {addresses.length > 0 ? 'Change' : 'Add'}
+                </Button>
+              </div>
+              {addresses.length > 0 ? (
+                <select
+                  value={selectedAddress || ''}
+                  onChange={(e) => onAddressChange(e.target.value)}
+                  className="w-full p-2 border rounded-md"
+                >
+                  <option value="">Select an address</option>
+                  {addresses.map((address, index) => (
+                    <option 
+                      key={address?.address_id || index} 
+                      value={address?.address_id?.toString() || ''}
+                    >
+                      {address ? formatAddress(address) : 'Invalid address'}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="text-center py-4 border rounded-md">
+                  <p className="text-gray-500">No addresses saved</p>
+                  <Button
+                    variant="link"
+                    onClick={() => navigate('/addresses')}
+                    className="text-primary"
+                  >
+                    Add a new address
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="mb-4">
+              <h3 className="font-medium mb-2">Payment Method</h3>
+              <div className="flex space-x-4">
+                <Button
+                  variant={selectedPaymentMethod === 'cod' ? 'default' : 'outline'}
+                  className="flex-1"
+                  onClick={() => setSelectedPaymentMethod('cod')}
+                >
+                  <Wallet className="h-4 w-4 mr-2" />
+                  COD
+                </Button>
+                <Button
+                  variant={selectedPaymentMethod === 'online' ? 'default' : 'outline'}
+                  className="flex-1"
+                  onClick={() => setSelectedPaymentMethod('online')}
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Online
+                </Button>
               </div>
             </div>
+
+            <div className="flex justify-between mb-4">
+              <span className="font-medium">Total</span>
+              <span className="font-bold">₹{total.toFixed(2)}</span>
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => setShowOrderSummary(true)}
+              disabled={isLoading || !isLoggedIn || !selectedAddress}
+            >
+              {isLoading ? "Processing..." : "Proceed to Checkout"}
+            </Button>
           </div>
-        </div>
+        )}
       </div>
 
-      {showPaymentMethod && (
-        <PaymentMethod
-          onBack={handleBackToAddress}
-          onProceed={handleProceedToSummary}
-        />
-      )}
-
-      {showOrderSummary && selectedAddressObj && (
+      {showOrderSummary && (
         <OrderSummary
           cartItems={cartItems}
-          selectedAddress={selectedAddressObj}
-          onBack={handleBackToPayment}
+          selectedAddress={selectedAddress}
+          onBack={() => setShowOrderSummary(false)}
           onPlaceOrder={handlePlaceOrder}
           paymentMethod={selectedPaymentMethod}
-          isLoading={isPlacingOrder}
+          isLoading={isLoading}
+          user={userId ? { id: userId, name: '', email: '' } : null}
         />
       )}
-    </>
+    </div>
   );
 };
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Minus, ShoppingCart } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "./ui/badge";
@@ -15,8 +15,9 @@ interface BestSellerCardProps {
   onUpdateCart: (productId: number, quantity: number) => void;
   onRemoveFromCart: (productId: number) => void;
   isInCart: boolean;
-  cartQuantity?: number;
+  cartQuantity: number;
   toggleCart: () => void;
+  onClick?: () => void;
 }
 
 const BestSellerCard = ({
@@ -24,12 +25,11 @@ const BestSellerCard = ({
   onAddToCart,
   onUpdateCart,
   onRemoveFromCart,
-  isInCart = false,
-  cartQuantity = 0,
+  isInCart,
+  cartQuantity,
   toggleCart,
+  onClick,
 }: BestSellerCardProps) => {
-  const [quantity, setQuantity] = useState(isInCart ? cartQuantity : 1);
-  const [isAddedToCart, setIsAddedToCart] = useState(isInCart);
   const [loaded, setLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const navigate = useNavigate();
@@ -38,48 +38,27 @@ const BestSellerCard = ({
     setLoaded(true);
   }, []);
 
-  useEffect(() => {
-    setIsAddedToCart(isInCart);
-    if (isInCart) {
-      setQuantity(cartQuantity);
-    }
-  }, [isInCart, cartQuantity]);
-
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onAddToCart(product, quantity);
-    setIsAddedToCart(true);
+    onAddToCart(product, 1);
     toggleCart();
   };
 
   const handleCardClick = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    navigate(`/product/${product.id}`, { state: product });
+    if (onClick) {
+      onClick();
+    } else {
+      navigate(`/product/${product.id}`);
+    }
   };
 
-  const incrementQuantity = (e: React.MouseEvent) => {
+  const handleUpdateQuantity = (e: React.MouseEvent, newQuantity: number) => {
     e.stopPropagation();
-    setQuantity((prev) => {
-      const newQuantity = Math.min(prev + 1, 10);
-      if (isAddedToCart) onUpdateCart(product.id, newQuantity);
-      return newQuantity;
-    });
-  };
-
-  const decrementQuantity = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setQuantity((prev) => {
-      const newQuantity = prev - 1;
-
-      if (newQuantity < 1) {
-        setIsAddedToCart(false);
-        onRemoveFromCart(product.id);
-        return 1;
-      }
-
-      if (isAddedToCart) onUpdateCart(product.id, newQuantity);
-      return newQuantity;
-    });
+    if (newQuantity === 0) {
+      onRemoveFromCart(product.id);
+    } else {
+      onUpdateCart(product.id, newQuantity);
+    }
   };
 
   const getImageUrl = (imagePath: string) => {
@@ -105,7 +84,11 @@ const BestSellerCard = ({
               alt={product.name}
               className="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-300"
               onLoad={() => setLoaded(true)}
-              onError={() => setImageError(true)}
+              onError={(e) => {
+                console.error('Image failed to load:', product.image);
+                console.error('Attempted URL:', getImageUrl(product.image));
+                setImageError(true);
+              }}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700">
@@ -139,26 +122,26 @@ const BestSellerCard = ({
           )}
         </div>
 
-        {isAddedToCart ? (
+        {isInCart ? (
           <div className="flex items-center gap-2">
             <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 flex items-center justify-center p-0"
-                onClick={decrementQuantity}
+                onClick={(e) => handleUpdateQuantity(e, cartQuantity - 1)}
               >
                 <Minus className="h-4 w-4" />
               </Button>
               <span className="w-10 text-center text-sm font-medium select-none">
-                {quantity}
+                {cartQuantity}
               </span>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 flex items-center justify-center p-0"
-                onClick={incrementQuantity}
-                disabled={quantity >= 10}
+                onClick={(e) => handleUpdateQuantity(e, cartQuantity + 1)}
+                disabled={cartQuantity >= 10}
               >
                 <Plus className="h-4 w-4" />
               </Button>

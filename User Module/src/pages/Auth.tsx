@@ -17,6 +17,7 @@ const Auth = ({ onLogin, isLoggedIn }: AuthProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -57,28 +58,38 @@ const Auth = ({ onLogin, isLoggedIn }: AuthProps) => {
       return;
     }
 
+    if (isNewUser && !formData.name.trim()) {
+      toast({
+        title: "Name required",
+        description: "Please enter your name",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      // Use the auth service to login
-      const response = await authService.login(formData.email, formData.password);
-      
-      // Store user data in localStorage
-      localStorage.setItem("user", JSON.stringify(response.user));
-      localStorage.setItem("isLoggedIn", "true");
+      // Use the auth service to login or register
+      const response = await authService.login(
+        formData.email, 
+        formData.password,
+        isNewUser ? formData.name : undefined
+      );
       
       // Call the onLogin callback with complete user data including id
       onLogin(response.user);
 
       toast({
-        title: "Success!",
-        description: "You have successfully logged in",
+        title: isNewUser ? "Registration successful!" : "Login successful!",
+        description: isNewUser ? "Welcome to ApnaKirana" : "Welcome back!",
       });
 
       navigate("/");
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Auth error:", error);
       toast({
         title: "Error",
-        description: "An error occurred while logging in",
+        description: isNewUser ? "Registration failed" : "Login failed",
         variant: "destructive",
       });
     } finally {
@@ -94,27 +105,29 @@ const Auth = ({ onLogin, isLoggedIn }: AuthProps) => {
             Welcome to ApnaKirana
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Sign in to your account or create a new one
+            {isNewUser ? "Create a new account" : "Sign in to your account"}
           </p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4 rounded-md shadow-sm">
-            <div>
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                name="name"
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                className="mt-1"
-                placeholder="John Doe"
-              />
-            </div>
+            {isNewUser && (
+              <div>
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="mt-1"
+                  placeholder="John Doe"
+                />
+              </div>
+            )}
 
             <div>
               <Label htmlFor="email">Email address</Label>
@@ -166,12 +179,24 @@ const Auth = ({ onLogin, isLoggedIn }: AuthProps) => {
             </div>
           </div>
 
+          <div className="flex items-center justify-between">
+            <Button
+              type="button"
+              variant="link"
+              onClick={() => setIsNewUser(!isNewUser)}
+            >
+              {isNewUser ? "Already have an account? Sign in" : "New user? Register"}
+            </Button>
+          </div>
+
           <Button
             type="submit"
             className="w-full"
             disabled={isLoading}
           >
-            {isLoading ? "Signing in..." : "Sign in"}
+            {isLoading 
+              ? (isNewUser ? "Creating account..." : "Signing in...") 
+              : (isNewUser ? "Create account" : "Sign in")}
           </Button>
         </form>
       </div>

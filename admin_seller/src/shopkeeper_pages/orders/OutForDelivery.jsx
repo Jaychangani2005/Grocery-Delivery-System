@@ -35,19 +35,21 @@ const OutForDelivery = () => {
   }, [user?.seller_id]);
 
   const handleViewOrder = (orderId) => {
-    navigate(`/order-details/${orderId}`);
+    const cleanOrderId = String(orderId).replace('#', '');
+    navigate(`/order-details/${cleanOrderId}`);
   };
 
   const handleCompleteDelivery = async (orderId) => {
     try {
-      await axios.put(`http://localhost:5000/api/dashboard/complete-delivery/${orderId}`, {
-        status: "Completed",
+      const cleanOrderId = String(orderId).replace('#', '');
+      await axios.put(`http://localhost:5000/api/dashboard/complete-delivery/${cleanOrderId}`, {
+        status: "delivered",
         seller_id: user?.seller_id
       });
       fetchOutForDeliveryOrders(); // Refresh the list
     } catch (err) {
-      console.error('Error completing delivery:', err);
-      setError('Failed to complete delivery. Please try again.');
+      console.error('Error updating order status:', err);
+      setError('Failed to update order status. Please try again.');
     }
   };
 
@@ -106,9 +108,9 @@ const OutForDelivery = () => {
                     <div className="p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <h4 className="text-sm font-medium text-gray-900">Order {order.id}</h4>
-                          <p className="text-sm text-gray-500">{order.customer_name}</p>
-                       </div>
+                          <h4 className="text-sm font-medium text-gray-900">Order #{String(order.id).replace('#', '')}</h4>
+                          <p className="text-sm text-gray-500">{order.customer}</p>
+                        </div>
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                           {order.status}
                         </span>

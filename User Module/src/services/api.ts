@@ -1,6 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import { toast } from 'react-hot-toast';
 import { authService } from './auth';
+import { API_URL } from '@/config';
 
 // Types
 export interface Product {
@@ -76,6 +77,10 @@ export interface PlaceOrderData {
   addressId: number;
   paymentMethod: string;
   total: number;
+  subtotal: number;
+  deliveryFee: number;
+  codFee: number;
+  tax: number;
 }
 
 interface ApiError {
@@ -86,21 +91,21 @@ interface OrdersResponse {
   orders?: Order[];
 }
 
-const API_BASE_URL = 'http://localhost:3000/api';
-
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   },
-  timeout: 10000 // 10 seconds timeout
+  timeout: 30000 // Increase timeout to 30 seconds
 });
 
 // Add auth token to requests if available
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-  if (token) {
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  
+  if (token && isLoggedIn) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -109,12 +114,41 @@ api.interceptors.request.use((config) => {
 // Handle API errors
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<ApiError>) => {
-    const message = error.response?.data?.error || 'An error occurred';
-    toast.error(message);
+  (error: AxiosError) => {
+    if (error.code === 'ECONNABORTED') {
+      toast.error('Request timed out. Please try again.');
+    } else if (error.response?.status === 401) {
+      // Handle unauthorized access
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.setItem('isLoggedIn', 'false');
+      const publicPaths = ['/auth', '/login', '/register', '/'];
+      if (!publicPaths.includes(window.location.pathname)) {
+        window.location.href = '/auth';
+      }
+    } else if (error.response?.status === 403) {
+      toast.error('Session expired. Please login again.');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.setItem('isLoggedIn', 'false');
+      window.location.href = '/auth';
+    } else {
+      const message = error.response?.data?.error || 'An error occurred';
+      toast.error(message);
+    }
     return Promise.reject(error);
   }
 );
+
+// Helper function to check authentication
+const checkAuth = () => {
+  const token = localStorage.getItem('token');
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  if (!token || !isLoggedIn) {
+    throw new Error('Authentication required');
+  }
+  return token;
+};
 
 export const productService = {
   // Get all products
@@ -576,7 +610,7 @@ export const productService = {
       } catch (apiError) {
         console.log('API error, using mock data:', apiError);
         
-        // If API fails, combine all available mock data
+        // If API fails, use mock data
         const mockProducts: Product[] = [
           // Best seller products
           {
@@ -702,7 +736,20 @@ export const productService = {
       }
     } catch (error) {
       console.error('Error fetching product:', error);
-      throw error;
+      // Instead of throwing an error, return a default product
+      return {
+        id: id,
+        name: `Product ${id}`,
+        description: `This is a default product description`,
+        price: 100.00,
+        oldPrice: 150.00,
+        image: "/images/products/default.jpg",
+        category: "General",
+        rating: 4.0,
+        isOrganic: false,
+        unit: "1 unit",
+        stock: 50
+      };
     }
   }
 };
@@ -722,159 +769,56 @@ export const categoryService = {
 };
 
 export const cartService = {
-  getCart: async (): Promise<CartItem[]> => {
+  async getCart(userId: number): Promise<CartItem[]> {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.log('No token found, returning empty cart');
-        return [];
-      }
-
-      const response = await fetch(`${API_BASE_URL}/cart`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch cart');
-      }
-
-      const data = await response.json();
-      console.log('Fetched cart items:', data);
-      return data;
+      const response = await api.get<CartItem[]>('/cart');
+      return response.data;
     } catch (error) {
       console.error('Error fetching cart:', error);
-      return [];
+      throw error;
     }
   },
 
-  addToCart: async (productId: number, quantity: number): Promise<CartItem> => {
+  async addToCart(userId: number, productId: number, quantity: number): Promise<CartItem> {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('User must be logged in to add items to cart');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/cart/add`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ productId, quantity })
+      const response = await api.post<CartItem>('/cart/add', {
+        productId,
+        quantity
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to add item to cart');
-      }
-
-      const data = await response.json();
-      console.log('Added item to cart:', data);
-      return data;
+      return response.data;
     } catch (error) {
       console.error('Error adding to cart:', error);
       throw error;
     }
   },
 
-  updateCartItem: async (productId: number, quantity: number): Promise<CartItem> => {
+  async updateQuantity(cartItemId: number, quantity: number): Promise<CartItem> {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('User must be logged in to update cart');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/cart/items/${productId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ quantity })
+      const response = await api.put<CartItem>(`/cart/items/${cartItemId}`, {
+        quantity
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update cart item');
-      }
-
-      const data = await response.json();
-      console.log('Updated cart item:', data);
-      return data;
+      return response.data;
     } catch (error) {
-      console.error('Error updating cart item:', error);
+      console.error('Error updating cart:', error);
       throw error;
     }
   },
 
-  removeFromCart: async (productId: number): Promise<void> => {
+  async removeFromCart(cartItemId: number): Promise<void> {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('User must be logged in to remove items from cart');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/cart/items/${productId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to remove item from cart');
-      }
-
-      console.log('Removed item from cart:', productId);
+      await api.delete(`/cart/items/${cartItemId}`);
     } catch (error) {
       console.error('Error removing from cart:', error);
       throw error;
     }
   },
 
-  placeOrder: async (addressId: number): Promise<Order> => {
+  async clearCart(userId: number): Promise<void> {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('User must be logged in to place order');
-      }
-
-      // Get the current user from localStorage
-      const userStr = localStorage.getItem('user');
-      if (!userStr) {
-        throw new Error('User data not found. Please log in again.');
-      }
-
-      const user = JSON.parse(userStr);
-      if (!user || !user.id) {
-        throw new Error('User ID not found. Please log in again.');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/orders`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          addressId,
-          userId: user.id 
-        })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to place order');
-      }
-
-      const data = await response.json();
-      console.log('Placed order:', data);
-      return data;
+      const cartItems = await this.getCart(userId);
+      await Promise.all(cartItems.map(item => this.removeFromCart(item.id)));
     } catch (error) {
-      console.error('Error placing order:', error);
+      console.error('Error clearing cart:', error);
       throw error;
     }
   }
@@ -883,52 +827,143 @@ export const cartService = {
 export const userService = {
   // Get user profile
   getProfile: async (): Promise<{ name: string; email: string }> => {
-    const response = await api.get<{ name: string; email: string }>('/users/profile');
-    return response.data;
+    try {
+      const token = checkAuth();
+      const response = await api.get<{ name: string; email: string }>('/users/profile');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      throw error;
+    }
   },
 
   // Address related endpoints
   getAddresses: async () => {
-    const response = await api.get<Address[]>('/addresses');
-    return response.data;
+    try {
+      const token = checkAuth();
+      const response = await api.get<Address[]>('/addresses');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching addresses:', error);
+      throw error;
+    }
   },
 
   addAddress: async (address: Omit<Address, 'address_id'>) => {
-    const response = await api.post<Address>('/addresses', address);
-    return response.data;
+    try {
+      const token = checkAuth();
+      const response = await api.post<Address>('/addresses', address);
+      return response.data;
+    } catch (error) {
+      console.error('Error adding address:', error);
+      throw error;
+    }
   },
 
   updateAddress: async (addressId: number, address: Omit<Address, 'address_id'>) => {
-    const response = await api.put<Address>(`/addresses/${addressId}`, address);
-    return response.data;
+    try {
+      const token = checkAuth();
+      const response = await api.put<Address>(`/addresses/${addressId}`, address);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating address:', error);
+      throw error;
+    }
   },
 
   deleteAddress: async (addressId: number) => {
-    const response = await api.delete(`/addresses/${addressId}`);
-    return response.data;
+    try {
+      const token = checkAuth();
+      const response = await api.delete(`/addresses/${addressId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting address:', error);
+      throw error;
+    }
   },
 };
 
 export const orderService = {
   placeOrder: async (orderData: PlaceOrderData) => {
     try {
-      console.log('Placing order with data:', orderData);
+      console.log('Raw order data received:', orderData);
       
       const token = localStorage.getItem('token');
       if (!token) {
         throw new Error('Authentication required');
       }
 
-      const response = await api.post('/orders', {
-        ...orderData,
+      // Validate required fields
+      if (!orderData.userId || !orderData.items || !orderData.addressId || !orderData.total) {
+        console.error('Missing required fields:', {
+          userId: orderData.userId,
+          items: orderData.items,
+          addressId: orderData.addressId,
+          total: orderData.total
+        });
+        throw new Error('Missing required order data');
+      }
+
+      // Format the order data
+      const formattedOrderData = {
+        userId: orderData.userId,
+        items: orderData.items.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        addressId: orderData.addressId,
         paymentMethod: orderData.paymentMethod || 'cod',
-        status: 'new'
+        total: orderData.total,
+        subtotal: orderData.subtotal,
+        deliveryFee: orderData.deliveryFee,
+        codFee: orderData.codFee,
+        tax: orderData.tax
+      };
+
+      // Validate all required numeric fields
+      if (!formattedOrderData.subtotal || !formattedOrderData.tax || 
+          !formattedOrderData.deliveryFee || formattedOrderData.codFee === undefined) {
+        // Calculate missing values
+        formattedOrderData.subtotal = formattedOrderData.subtotal || 
+          orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        formattedOrderData.deliveryFee = formattedOrderData.deliveryFee || 30;
+        formattedOrderData.codFee = formattedOrderData.codFee || 
+          (orderData.paymentMethod === 'cod' ? 30 : 0);
+        formattedOrderData.tax = formattedOrderData.tax || 
+          (formattedOrderData.subtotal * 0.18);
+        formattedOrderData.total = formattedOrderData.subtotal + 
+          formattedOrderData.deliveryFee + formattedOrderData.codFee + 
+          formattedOrderData.tax;
+      }
+
+      console.log('Formatted order data being sent:', formattedOrderData);
+
+      const response = await api.post('/orders', formattedOrderData, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
+
+      // After successful order placement, clear the cart
+      try {
+        await cartService.clearCart(orderData.userId);
+      } catch (cartError) {
+        console.error('Error clearing cart after order:', cartError);
+        // Don't throw the error, as the order was placed successfully
+      }
 
       console.log('Order placed successfully:', response.data);
       return response.data;
-    } catch (error) {
-      console.error('Error placing order:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Error placing order:', error.message);
+        if (axios.isAxiosError(error) && error.response?.data) {
+          console.error('Server response:', error.response.data);
+        }
+      } else {
+        console.error('An unknown error occurred');
+      }
       throw error;
     }
   },
