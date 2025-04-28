@@ -16,7 +16,8 @@ const CompletedOrders = () => {
     try {
       setLoading(true);
       const response = await axios.get(`http://localhost:5000/api/dashboard/completed-deliveries?seller_id=${user?.seller_id}`);
-      console.log("Completed orders data:", response.data);
+      console.log("Completed orders raw data:", response.data);
+      console.log("First order data structure:", response.data[0]);
       setOrders(response.data);
       setError(null);
     } catch (err) {

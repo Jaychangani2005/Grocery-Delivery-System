@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { FiArrowLeft } from "react-icons/fi";
 
 const EditProduct = () => {
   const { productId } = useParams();
@@ -111,50 +112,102 @@ const EditProduct = () => {
     }
   };
 
+  const handleBack = () => {
+    navigate(`/view-product/${productId}`);
+  };
+
   if (error) return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mt-20 p-6">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-          <strong className="font-bold">Error!</strong>
-          <span className="block sm:inline"> {error}</span>
-        </div>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+        <strong className="font-bold">Error!</strong>
+        <span className="block sm:inline"> {error}</span>
       </div>
     </div>
   );
 
   if (!product) return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mt-20 p-6 text-center">
-        <div className="animate-pulse text-xl text-gray-600">Loading...</div>
-      </div>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 text-center">
+      <div className="animate-pulse text-xl text-gray-600">Loading...</div>
     </div>
   );
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="p-6">
-        <Section title="Edit Product">
-          <form className="space-y-4" onSubmit={handleSubmit}>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100">
+      <div className="p-4 sm:p-6 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={handleBack}
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              title="Go back to product details"
+            >
+              <FiArrowLeft className="text-gray-600" size={20} />
+            </button>
+            <h2 className="text-lg font-semibold text-gray-900">Edit Product</h2>
+          </div>
+        </div>
+      </div>
+      <div className="p-4 sm:p-6">
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <InputField label="Product Name" name="productName" value={formData.productName} onChange={handleChange} />
             <InputField label="Unit" name="unit" value={formData.unit} onChange={handleChange} placeholder="e.g., 500 ml" />
             <SelectField label="Category" name="category" value={formData.category} onChange={handleChange} options={categories} />
             <InputField label="Price" name="price" value={formData.price} onChange={handleChange} type="number" step="0.0" />
-            <label className="block text-gray-700 font-medium">Description</label>
-            <textarea name="description" value={formData.description} onChange={handleChange} className="w-full p-2 border rounded-lg" required></textarea>
             <InputField label="MRP" name="mrp" value={formData.mrp} onChange={handleChange} type="number" step="0.00" />
             <InputField label="Stock" name="stock" value={formData.stock} onChange={handleChange} type="number" />
             <InputField label="Shelf Life" name="shelflife" value={formData.shelflife} onChange={handleChange} placeholder="e.g., 3 days" />
+          </div>
+          
+          <div>
+            <label className="block text-gray-700 font-medium mb-1">Description</label>
+            <textarea 
+              name="description" 
+              value={formData.description} 
+              onChange={handleChange} 
+              className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" 
+              rows="4"
+              required
+            ></textarea>
+          </div>
 
-            {/* Image Upload */}
-            <div>
-              <label className="block text-gray-700 font-medium">Product Image (Optional)</label>
-              {previewImage && <img src={previewImage} alt="Preview" className="w-32 h-32 object-cover mt-2" />}
-              <input type="file" name="image" accept="image/*" onChange={handleChange} className="mt-2" />
-            </div>
+          {/* Image Upload */}
+          <div>
+            <label className="block text-gray-700 font-medium mb-1">Product Image (Optional)</label>
+            {previewImage && (
+              <div className="mt-2 mb-2">
+                <img 
+                  src={previewImage.startsWith('http') ? previewImage : `http://localhost:5000${previewImage}`} 
+                  alt="Preview" 
+                  className="w-32 h-32 object-cover rounded-lg border border-gray-200" 
+                />
+              </div>
+            )}
+            <input 
+              type="file" 
+              name="image" 
+              accept="image/*" 
+              onChange={handleChange} 
+              className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" 
+            />
+          </div>
 
-            <button type="submit" className="w-full bg-orange-500 text-white p-3 rounded-lg hover:bg-orange-600">Update Product</button>
-          </form>
-        </Section>
+          <div className="flex justify-end space-x-3 pt-4">
+            <button 
+              type="button" 
+              onClick={handleBack}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+            >
+              Update Product
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -164,25 +217,26 @@ const EditProduct = () => {
 const InputField = ({ label, ...props }) => (
   <label className="block">
     <span className="text-gray-700 font-medium">{label}</span>
-    <input className="w-full p-2 border rounded-lg mt-1" {...props} />
+    <input 
+      className="w-full p-2 border border-gray-200 rounded-lg mt-1 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" 
+      {...props} 
+    />
   </label>
 );
 
 const SelectField = ({ label, name, value, onChange, options }) => (
   <label className="block">
     <span className="text-gray-700 font-medium">{label}</span>
-    <select name={name} value={value} onChange={onChange} className="w-full p-2 border rounded-lg mt-1">
+    <select 
+      name={name} 
+      value={value} 
+      onChange={onChange} 
+      className="w-full p-2 border border-gray-200 rounded-lg mt-1 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+    >
       <option value="">Select a category</option>
       {options.map(cat => <option key={cat.category_id} value={cat.name}>{cat.name}</option>)}
     </select>
   </label>
-);
-
-const Section = ({ title, children }) => (
-  <section className="mt-8">
-    <h2 className="text-xl font-semibold text-gray-700">{title}</h2>
-    <div className="bg-white shadow-md rounded-lg p-6 mt-4">{children}</div>
-  </section>
 );
 
 export default EditProduct;

@@ -39,20 +39,6 @@ const OutForDelivery = () => {
     navigate(`/order-details/${cleanOrderId}`);
   };
 
-  const handleCompleteDelivery = async (orderId) => {
-    try {
-      const cleanOrderId = String(orderId).replace('#', '');
-      await axios.put(`http://localhost:5000/api/dashboard/complete-delivery/${cleanOrderId}`, {
-        status: "delivered",
-        seller_id: user?.seller_id
-      });
-      fetchOutForDeliveryOrders(); // Refresh the list
-    } catch (err) {
-      console.error('Error updating order status:', err);
-      setError('Failed to update order status. Please try again.');
-    }
-  };
-
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
@@ -140,12 +126,6 @@ const OutForDelivery = () => {
                         >
                           <FiEye className="mr-2" size={16} />
                           View
-                        </button>
-                        <button
-                          onClick={() => handleCompleteDelivery(order.id)}
-                          className="flex-1 px-4 py-2 text-sm font-medium text-purple-600 hover:text-purple-700 border border-purple-200 rounded-md hover:bg-purple-50 transition-colors"
-                        >
-                          Complete
                         </button>
                       </div>
                     </div>

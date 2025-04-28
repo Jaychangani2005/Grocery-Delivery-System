@@ -86,6 +86,7 @@ const AdminNavbar = () => {
         <NavItem to="/manage-shopkeepers" text="Manage Shopkeeper" />
         <NavItem to="/manage-delivery" text="Manage Delivery" />
         <NavItem to="/view-users" text="View User" />
+        <NavItem to="/admin/delivery-verification" text="Delivery Verification" />
 
         {/* Profile Dropdown */}
         <div className="relative">
@@ -142,6 +143,7 @@ const AdminNavbar = () => {
           <NavItem to="/manage-shopkeepers" text="Manage Shopkeeper" />
           <NavItem to="/manage-delivery" text="Manage Delivery" />
           <NavItem to="/view-users" text="View User" />
+          <NavItem to="/admin/delivery-verification" text="Delivery Verification" />
 
           {/* Mobile Profile Dropdown */}
           <div className="mt-4">

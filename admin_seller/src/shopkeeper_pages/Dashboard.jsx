@@ -207,14 +207,16 @@ const Dashboard = () => {
         }
         
         // Use the existing API endpoints with the properly formatted period parameter
-        const [newOrdersRes, pendingRes, outRes, completedRes, canceledRes, productsRes] = await Promise.all([
+        const [newOrdersRes, pendingRes, outRes, completedRes, canceledRes, productsRes, totalCustomersRes] = await Promise.all([
           axios.get(`http://localhost:5000/api/dashboard/new-orders?seller_id=${user?.seller_id}&period=${periodParam}`),
           axios.get(`http://localhost:5000/api/dashboard/pending-deliveries?seller_id=${user?.seller_id}&period=${periodParam}`),
           axios.get(`http://localhost:5000/api/dashboard/out-of-deliveries?seller_id=${user?.seller_id}&period=${periodParam}`),
           axios.get(`http://localhost:5000/api/dashboard/completed-deliveries?seller_id=${user?.seller_id}&period=${periodParam}`),
           axios.get(`http://localhost:5000/api/dashboard/canceled-orders?seller_id=${user?.seller_id}&period=${periodParam}`),
           // Products don't need period filtering as they're inventory items
-          axios.get(`http://localhost:5000/api/dashboard/products?seller_id=${user?.seller_id}`)
+          axios.get(`http://localhost:5000/api/dashboard/products?seller_id=${user?.seller_id}`),
+          // Fetch total customers count
+          axios.get(`http://localhost:5000/api/dashboard/total-customers?seller_id=${user?.seller_id}`)
         ]);
 
         // Update the orders state
@@ -227,64 +229,60 @@ const Dashboard = () => {
         // Calculate statistics based on the fetched data
         const totalOrders = newOrdersRes.data.length + pendingRes.data.length + outRes.data.length + completedRes.data.length + canceledRes.data.length;
         const totalRevenue = [...newOrdersRes.data, ...pendingRes.data, ...outRes.data, ...completedRes.data]
-          .reduce((acc, curr) => acc + (curr.total_amount || 0), 0);
+          .reduce((acc, curr) => {
+            console.log('Order data:', curr);
+            console.log('Current total:', curr.total);
+            return acc + (Number(curr.total) || 0);
+          }, 0);
+
+        console.log('Calculated totalRevenue:', totalRevenue);
+        
         const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
         
-        // Calculate category sales data for the chart
+        // Combine all orders into one array
         const allOrders = [...newOrdersRes.data, ...pendingRes.data, ...outRes.data, ...completedRes.data];
-        const categorySalesMap = {};
-        
-        // Process each order to extract category sales
+
+        // Aggregate product sales for top products
+        const productSalesMap = {};
         allOrders.forEach(order => {
-          console.log('Processing order:', order);
-          
-          // Check if order has items array
-          if (order.items && Array.isArray(order.items)) {
-            order.items.forEach(item => {
-              console.log('Processing item:', item);
-              
-              // Extract category from item, with fallbacks
-              const category = item.category || item.product_category || 'Uncategorized';
-              const price = parseFloat(item.price) || 0;
-              const quantity = parseInt(item.quantity) || 0;
-              const amount = price * quantity;
-              
-              console.log(`Category: ${category}, Amount: ${amount}`);
-              
-              if (!categorySalesMap[category]) {
-                categorySalesMap[category] = 0;
-              }
-              categorySalesMap[category] += amount;
-            });
-          } else if (order.products && Array.isArray(order.products)) {
-            // Alternative field name for products
-            order.products.forEach(item => {
-              console.log('Processing product:', item);
-              
-              const category = item.category || item.product_category || 'Uncategorized';
-              const price = parseFloat(item.price) || 0;
-              const quantity = parseInt(item.quantity) || 0;
-              const amount = price * quantity;
-              
-              console.log(`Category: ${category}, Amount: ${amount}`);
-              
-              if (!categorySalesMap[category]) {
-                categorySalesMap[category] = 0;
-              }
-              categorySalesMap[category] += amount;
-            });
-          }
+          const items = order.items || order.products || [];
+          items.forEach(item => {
+            const productId = item.product_id || item.id || item._id;
+            if (!productId) return;
+            if (!productSalesMap[productId]) {
+              productSalesMap[productId] = {
+                _id: productId,
+                name: item.name,
+                category: item.category || item.product_category || 'Uncategorized',
+                image: item.image || item.image_url || '',
+                totalSold: 0,
+                revenue: 0
+              };
+            }
+            productSalesMap[productId].totalSold += Number(item.quantity) || 0;
+            productSalesMap[productId].revenue += (Number(item.price) || 0) * (Number(item.quantity) || 0);
+          });
         });
-        
-        console.log('Category Sales Map:', categorySalesMap);
-        
-        // Convert to array format for the chart
-        const categorySalesData = Object.entries(categorySalesMap).map(([name, total]) => ({
-          name,
-          total
-        }));
-        
-        console.log('Category Sales Data for Chart:', categorySalesData);
+        const topProducts = Object.values(productSalesMap)
+          .sort((a, b) => b.totalSold - a.totalSold)
+          .slice(0, 5);
+
+        // Aggregate sales by category
+        const categorySalesMap = {};
+        allOrders.forEach(order => {
+          const items = order.items || order.products || [];
+          items.forEach(item => {
+              const category = item.category || item.product_category || 'Uncategorized';
+              const price = parseFloat(item.price) || 0;
+              const quantity = parseInt(item.quantity) || 0;
+              const amount = price * quantity;
+              if (!categorySalesMap[category]) {
+                categorySalesMap[category] = 0;
+              }
+              categorySalesMap[category] += amount;
+            });
+        });
+        const categorySalesData = Object.entries(categorySalesMap).map(([name, total]) => ({ name, total }));
         
         // Update the stats state
         setStats(prevStats => ({
@@ -296,14 +294,13 @@ const Dashboard = () => {
           canceledOrders: canceledRes.data.length,
           averageOrderValue,
           totalProducts: productsRes.data.length,
-          lowStockProducts: productsRes.data.filter(p => p.quantity < 10).length,
+          lowStockProducts: productsRes.data.filter(p => p.stock < 10).length,
           categorySales: categorySalesData,
-          // Keep other stats as they are
-          totalCustomers: prevStats.totalCustomers,
+          totalCustomers: totalCustomersRes.data.total_customers || 0,
           totalCategories: prevStats.totalCategories,
           recentOrders: prevStats.recentOrders,
           dailySales: prevStats.dailySales,
-          topProducts: prevStats.topProducts,
+          topProducts: topProducts,
           pendingPayments: prevStats.pendingPayments,
           customerSatisfaction: prevStats.customerSatisfaction
         }));
@@ -395,7 +392,7 @@ const Dashboard = () => {
     },
     {
       title: 'Total Revenue',
-      value: `₹${stats.totalRevenue.toFixed(2)}`,
+      value: `₹${Number(stats.totalRevenue || 0).toFixed(2)}`,
       icon: <FiDollarSign className="text-yellow-500" size={24} />,
       change: '+15%',
       color: 'yellow'
@@ -587,7 +584,7 @@ const Dashboard = () => {
                 </div>
                 <div className="space-y-3 md:space-y-4 overflow-x-auto">
                   {stats.recentOrders.length > 0 ? (
-                    stats.recentOrders.map((order) => (
+                    stats.recentOrders.slice(0, 5).map((order) => (
                       <div key={order._id} className="flex items-center justify-between p-3 md:p-4 bg-gray-50 rounded-lg">
                         <div>
                           <p className="font-medium text-gray-900">Order #{order._id.slice(-6)}</p>
@@ -621,7 +618,7 @@ const Dashboard = () => {
                 </div>
                 <div className="space-y-3 md:space-y-4 overflow-x-auto">
                   {stats.topProducts.length > 0 ? (
-                    stats.topProducts.map((product) => (
+                    stats.topProducts.slice(0, 5).map((product) => (
                       <div key={product._id} className="flex items-center justify-between p-3 md:p-4 bg-gray-50 rounded-lg">
                         <div className="flex items-center space-x-3 md:space-x-4">
                           <img

@@ -33,6 +33,7 @@ import Profile from "./shopkeeper_pages/Profile";
 import SellerNavbar from "./components/SellerNavbar";
 import { useContext } from "react";
 import { UserContext } from "./context/UserContext";
+import DeliveryAgentVerification from "./shopkeeper_pages/DeliveryAgentVerification";
 
 // Layout component for seller pages
 const SellerLayout = ({ children }) => {
@@ -88,6 +89,7 @@ function App() {
           <Route path="/out-for-delivery" element={<ProtectedRoute><OutForDelivery /></ProtectedRoute>} />
           <Route path="/completed-orders" element={<ProtectedRoute><CompletedOrders /></ProtectedRoute>} />
           <Route path="/cancel-orders" element={<ProtectedRoute><CancelOrders /></ProtectedRoute>} />
+          <Route path="/seller/delivery-verification" element={<ProtectedRoute><DeliveryAgentVerification /></ProtectedRoute>} />
           
           {/* Admin Routes */}
           <Route path="/admin/login" element={<AdminLogin />} />
@@ -102,6 +104,7 @@ function App() {
           <Route path="/admin/delivery-agents" element={<ManageDeliveries />} />
           <Route path="/admin/delivery-agents/:id" element={<DeliveryAgentDetails />} />
           <Route path="/admin/users/:id" element={<UserDetails />} />
+          <Route path="/admin/delivery-verification" element={<DeliveryAgentVerification />} />
 
           {/* Default Route */}
           <Route path="/" element={<Navigate to="/login" replace />} />

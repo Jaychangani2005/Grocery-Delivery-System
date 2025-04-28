@@ -390,9 +390,9 @@ router.get('/new-orders', (req, res) => {
   const { seller_id } = req.query;
     const query = `
       SELECT o.order_id AS id, u.full_name AS customer, ua.area AS address, 
-          GROUP_CONCAT(p.name) AS details, o.status, o.created_at
+          GROUP_CONCAT(p.name) AS details, o.status, o.created_at, o.total
       FROM (
-        SELECT DISTINCT o.order_id, o.user_id, o.status, o.created_at, o.address_id
+        SELECT DISTINCT o.order_id, o.user_id, o.status, o.created_at, o.address_id, o.total
         FROM orders o
         JOIN order_items oi ON o.order_id = oi.order_id
         JOIN products p ON oi.product_id = p.product_id
@@ -402,7 +402,7 @@ router.get('/new-orders', (req, res) => {
       JOIN user_addresses ua ON o.address_id = ua.address_id
       JOIN order_items oi ON o.order_id = oi.order_id
       JOIN products p ON oi.product_id = p.product_id
-      GROUP BY o.order_id, u.full_name, ua.area, o.status, o.created_at
+      GROUP BY o.order_id, u.full_name, ua.area, o.status, o.created_at, o.total
       ORDER BY o.created_at DESC;
     `;
   db.query(query, [seller_id], (err, results) => {
@@ -410,14 +410,22 @@ router.get('/new-orders', (req, res) => {
         console.error('Error fetching pending deliveries:', err);
         return res.status(500).json({ error: 'Database error' });
       }
-      res.json(results.map(row => ({
+      
+      console.log('Raw pending deliveries results:', results);
+      
+      const mappedResults = results.map(row => ({
         id: row.id,
         customer: row.customer,
         address: row.address,
         details: row.details,
         status: row.status,
-      created_at: row.created_at
-      })));
+        created_at: row.created_at,
+        total_amount: row.total
+      }));
+      
+      console.log('Mapped pending deliveries results:', mappedResults);
+      
+      res.json(mappedResults);
     });
   });
 
@@ -425,9 +433,9 @@ router.get('/new-orders', (req, res) => {
   const { seller_id } = req.query;
     const query = `
     SELECT o.order_id AS id, u.full_name AS customer, ua.area AS address, 
-          o.status, o.created_at
+          o.status, o.created_at, o.total
       FROM (
-        SELECT DISTINCT o.order_id, o.user_id, o.status, o.created_at, o.address_id
+        SELECT DISTINCT o.order_id, o.user_id, o.status, o.created_at, o.address_id, o.total
         FROM orders o
         JOIN order_items oi ON o.order_id = oi.order_id
         JOIN products p ON oi.product_id = p.product_id
@@ -441,54 +449,65 @@ router.get('/new-orders', (req, res) => {
         console.error('Error fetching out of deliveries:', err);
         return res.status(500).json({ error: 'Database error' });
       }
-      res.json(results.map(row => ({
-        id: row.id,
-        customer: row.customer,
-        address: row.address,
-        status: row.status,
-      created_at: row.created_at
-      })));
-    });
-  });
-
-  router.get('/completed-deliveries', (req, res) => {
-  const { seller_id } = req.query;
-    const query = `
-    SELECT o.order_id AS id, u.full_name AS customer, ua.area AS address, 
-          o.status, o.created_at, o.total
-      FROM (
-        SELECT DISTINCT o.order_id, o.user_id, o.status, o.created_at, o.address_id, o.total
-        FROM orders o
-        JOIN order_items oi ON o.order_id = oi.order_id
-        JOIN products p ON oi.product_id = p.product_id
-        WHERE o.status = 'delivered' AND p.seller_id = ?
-      ) o
-      JOIN users u ON o.user_id = u.user_id
-      JOIN user_addresses ua ON o.address_id = ua.address_id;
-    `;
-  db.query(query, [seller_id], (err, results) => {
-      if (err) {
-        console.error('Error fetching completed deliveries:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      res.json(results.map(row => ({
+      
+      console.log('Raw out-of-deliveries results:', results);
+      
+      const mappedResults = results.map(row => ({
         id: row.id,
         customer: row.customer,
         address: row.address,
         status: row.status,
         created_at: row.created_at,
-        total: row.total
-      })));
+        total_amount: row.total
+      }));
+      
+      console.log('Mapped out-of-deliveries results:', mappedResults);
+      
+      res.json(mappedResults);
     });
   });
+
+  router.get('/completed-deliveries', (req, res) => {
+  const { seller_id } = req.query;
+  const query = `
+    SELECT o.order_id AS id, u.full_name AS customer, ua.area AS address, 
+          o.status, o.created_at, o.total
+    FROM (
+      SELECT DISTINCT o.order_id, o.user_id, o.status, o.created_at, o.address_id, o.total
+      FROM orders o
+      JOIN order_items oi ON o.order_id = oi.order_id
+      JOIN products p ON oi.product_id = p.product_id
+      WHERE o.status = 'delivered' AND p.seller_id = ?
+    ) o
+    JOIN users u ON o.user_id = u.user_id
+    JOIN user_addresses ua ON o.address_id = ua.address_id;
+  `;
+  db.query(query, [seller_id], (err, results) => {
+    if (err) {
+      console.error('Error fetching completed deliveries:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    console.log('Raw completed deliveries results:', results);
+    const mappedResults = results.map(row => ({
+      id: row.id,
+      customer: row.customer,
+      address: row.address,
+      status: row.status,
+      created_at: row.created_at,
+      total: row.total
+    }));
+    console.log('Mapped completed deliveries results:', mappedResults);
+    res.json(mappedResults);
+  });
+});
 
   router.get('/canceled-orders', (req, res) => {
     const { seller_id } = req.query;
     const query = `
       SELECT o.order_id AS id, u.full_name AS customer, ua.area AS address, 
-            GROUP_CONCAT(p.name) AS details, o.status, o.created_at
+            GROUP_CONCAT(p.name) AS details, o.status, o.created_at, o.total
       FROM (
-        SELECT DISTINCT o.order_id, o.user_id, o.status, o.created_at, o.address_id
+        SELECT DISTINCT o.order_id, o.user_id, o.status, o.created_at, o.address_id, o.total
         FROM orders o
         JOIN order_items oi ON o.order_id = oi.order_id
         JOIN products p ON oi.product_id = p.product_id
@@ -498,21 +517,29 @@ router.get('/new-orders', (req, res) => {
       JOIN user_addresses ua ON o.address_id = ua.address_id
       JOIN order_items oi ON o.order_id = oi.order_id
       JOIN products p ON oi.product_id = p.product_id
-      GROUP BY o.order_id, u.full_name, ua.area, o.status, o.created_at;
+      GROUP BY o.order_id, u.full_name, ua.area, o.status, o.created_at, o.total;
     `;
     db.query(query, [seller_id], (err, results) => {
       if (err) {
         console.error('Error fetching canceled orders:', err);
         return res.status(500).json({ error: 'Database error' });
       }
-      res.json(results.map(row => ({
+      
+      console.log('Raw canceled orders results:', results);
+      
+      const mappedResults = results.map(row => ({
         id: row.id,
         customer: row.customer,
         address: row.address,
         details: row.details,
         status: row.status,
-        created_at: row.created_at
-      })));
+        created_at: row.created_at,
+        total_amount: row.total
+      }));
+      
+      console.log('Mapped canceled orders results:', mappedResults);
+      
+      res.json(mappedResults);
     });
   });
 
@@ -767,19 +794,19 @@ router.get('/new-orders', (req, res) => {
                     console.error('Error updating delivery record:', err);
                   }
                   
-                  // Update delivery person status to busy
-                  const updateAgentStatusQuery = `
-                    UPDATE delivery_agents 
-                    SET status = 'busy'
-                    WHERE agent_id = ?;
-                  `;
-                  
-                  db.query(updateAgentStatusQuery, [delivery_person_id], (err) => {
-                    if (err) {
-                      console.error('Error updating delivery agent status:', err);
-                    }
-                    res.json({ message: 'Order status updated successfully' });
-                  });
+                  // Do NOT update delivery person status to busy
+                  // const updateAgentStatusQuery = `
+                  //   UPDATE delivery_agents 
+                  //   SET status = 'busy'
+                  //   WHERE agent_id = ?;
+                  // `;
+                  // db.query(updateAgentStatusQuery, [delivery_person_id], (err) => {
+                  //   if (err) {
+                  //     console.error('Error updating delivery agent status:', err);
+                  //   }
+                  //   res.json({ message: 'Order status updated successfully' });
+                  // });
+                  res.json({ message: 'Order status updated successfully' });
                 });
               } else {
                 // Insert new record
@@ -793,19 +820,19 @@ router.get('/new-orders', (req, res) => {
                     console.error('Error inserting delivery record:', err);
                   }
                   
-                  // Update delivery person status to busy
-                  const updateAgentStatusQuery = `
-                    UPDATE delivery_agents 
-                    SET status = 'busy'
-                    WHERE agent_id = ?;
-                  `;
-                  
-                  db.query(updateAgentStatusQuery, [delivery_person_id], (err) => {
-                    if (err) {
-                      console.error('Error updating delivery agent status:', err);
-                    }
-                    res.json({ message: 'Order status updated successfully' });
-                  });
+                  // Do NOT update delivery person status to busy
+                  // const updateAgentStatusQuery = `
+                  //   UPDATE delivery_agents 
+                  //   SET status = 'busy'
+                  //   WHERE agent_id = ?;
+                  // `;
+                  // db.query(updateAgentStatusQuery, [delivery_person_id], (err) => {
+                  //   if (err) {
+                  //     console.error('Error updating delivery agent status:', err);
+                  //   }
+                  //   res.json({ message: 'Order status updated successfully' });
+                  // });
+                  res.json({ message: 'Order status updated successfully' });
                 });
               }
             });
@@ -1993,6 +2020,25 @@ router.get('/top-products', (req, res) => {
   db.query(query, [seller_id, parseInt(limit)], (err, results) => {
     if (err) return res.status(500).json({ error: 'Database error', details: err.message });
     res.json(results);
+  });
+});
+
+// Get total customers for a seller
+router.get('/total-customers', (req, res) => {
+  const { seller_id } = req.query;
+  if (!seller_id) return res.status(400).json({ error: 'seller_id is required' });
+  
+  const query = `
+    SELECT COUNT(DISTINCT o.user_id) AS total_customers
+    FROM orders o
+    JOIN order_items oi ON o.order_id = oi.order_id
+    JOIN products p ON oi.product_id = p.product_id
+    WHERE p.seller_id = ?
+  `;
+  
+  db.query(query, [seller_id], (err, results) => {
+    if (err) return res.status(500).json({ error: 'Database error', details: err.message });
+    res.json({ total_customers: results[0].total_customers });
   });
 });
 

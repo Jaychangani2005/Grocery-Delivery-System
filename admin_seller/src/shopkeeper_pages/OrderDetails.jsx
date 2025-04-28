@@ -194,15 +194,6 @@ const OrderDetails = () => {
                     </button>
                   </div>
                 )}
-                {order.order_status === 'Out For delivery' && (
-                  <button
-                    onClick={() => handleUpdateStatus('delivered')}
-                    className="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center"
-                  >
-                    <FiCheck className="mr-2" />
-                    Mark as Delivered
-                  </button>
-                )}
               </div>
             </div>
           </div>

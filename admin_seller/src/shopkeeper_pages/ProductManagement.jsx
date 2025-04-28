@@ -20,6 +20,7 @@ const ProductManagement = () => {
       try {
         setLoading(true);
         const response = await axios.get(`http://localhost:5000/api/dashboard/products?seller_id=${user?.seller_id}`);
+        console.log("First product details:", response.data[0]); // Log first product in detail
         setProducts(response.data);
         setError(null);
       } catch (err) {
@@ -165,10 +166,14 @@ const ProductManagement = () => {
                   >
                     <div className="relative h-48 w-full">
                       <img
-                        src={product.image_url || "https://via.placeholder.com/300"}
+                        src={product.image_url ? (product.image_url.startsWith('http') ? product.image_url : `http://localhost:5000${product.image_url}`) : 
+                           product.image ? (product.image.startsWith('http') ? product.image : `http://localhost:5000${product.image}`) :
+                           "https://via.placeholder.com/300"}
                         alt={product.name}
                         className="object-cover w-full h-full"
                         onError={(e) => {
+                          console.log("Image load error for product:", product.id, product.name);
+                          console.log("Image URL attempted:", e.target.src);
                           e.target.src = "https://via.placeholder.com/300";
                         }}
                       />

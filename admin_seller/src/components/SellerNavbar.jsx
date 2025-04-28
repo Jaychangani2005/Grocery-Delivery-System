@@ -245,6 +245,7 @@ const navigation = [
   { name: 'Completed Orders', href: '/completed-orders', icon: FiCheckCircle },
   { name: 'Cancel Orders', href: '/cancel-orders', icon: FiXCircle },
   { name: 'Products', href: '/products', icon: FiPackage },
+  { name: 'Delivery Verification', href: '/seller/delivery-verification', icon: FiSettings },
 ];
 
 const SellerNavbar = () => {
