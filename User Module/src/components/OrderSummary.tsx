@@ -9,10 +9,9 @@ interface OrderSummaryProps {
   cartItems: { product: Product; quantity: number }[];
   selectedAddress: string;
   onBack: () => void;
-  onPlaceOrder: (paymentMethod: string, orderData?: any) => Promise<void>;
+  onPlaceOrder: (paymentMethod: string) => Promise<void>;
   paymentMethod: string;
   isLoading: boolean;
-  user: { id: number; name: string; email: string } | null;
 }
 
 const OrderSummary = ({
@@ -22,19 +21,9 @@ const OrderSummary = ({
   onPlaceOrder,
   paymentMethod,
   isLoading,
-  user
 }: OrderSummaryProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
-
-  // Calculate all the required values
-  const subtotal = cartItems.reduce((sum, item) => {
-    return sum + (item.product.price * item.quantity);
-  }, 0);
-  const deliveryFee = 30;
-  const codFee = paymentMethod === 'cod' ? 30 : 0;
-  const tax = subtotal * 0.18;
-  const total = subtotal + deliveryFee + codFee + tax;
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -59,26 +48,20 @@ const OrderSummary = ({
     };
   }, []);
 
+  const subtotal = cartItems.reduce((sum, item) => {
+    return sum + (item.product.price * item.quantity);
+  }, 0);
+
+  const deliveryFee = 30;
+  const codFee = paymentMethod === 'cod' ? 30 : 0;
+  const tax = subtotal * 0.18;
+  const total = subtotal + deliveryFee + codFee + tax;
+
   const handlePlaceOrder = async () => {
     if (paymentMethod === 'cod') {
       setIsProcessing(true);
       try {
-        const orderData = {
-          userId: user?.id,
-          items: cartItems.map(item => ({
-            productId: item.product.id,
-            quantity: item.quantity,
-            price: item.product.price
-          })),
-          addressId: parseInt(selectedAddress),
-          paymentMethod: 'cod',
-          subtotal: subtotal,
-          deliveryFee: deliveryFee,
-          codFee: codFee,
-          tax: tax,
-          total: total
-        };
-        await onPlaceOrder('cod', orderData);
+        await onPlaceOrder('cod');
         toast.success('Order placed successfully!');
       } catch (error) {
         console.error('Error placing order:', error);
@@ -106,22 +89,7 @@ const OrderSummary = ({
         handler: async function (response: any) {
           try {
             setIsProcessing(true);
-            const orderData = {
-              userId: user?.id,
-              items: cartItems.map(item => ({
-                productId: item.product.id,
-                quantity: item.quantity,
-                price: item.product.price
-              })),
-              addressId: parseInt(selectedAddress),
-              paymentMethod: 'online',
-              subtotal: subtotal,
-              deliveryFee: deliveryFee,
-              codFee: 0, // No COD fee for online payments
-              tax: tax,
-              total: total
-            };
-            await onPlaceOrder('online', orderData);
+            await onPlaceOrder('online');
             toast.success('Payment successful! Order placed.');
           } catch (error) {
             console.error('Error processing payment:', error);
@@ -131,8 +99,8 @@ const OrderSummary = ({
           }
         },
         prefill: {
-          name: user?.name || "Customer Name",
-          email: user?.email || "customer@example.com",
+          name: "Customer Name",
+          email: "customer@example.com",
           contact: "9999999999"
         },
         theme: {

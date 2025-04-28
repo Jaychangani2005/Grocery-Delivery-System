@@ -286,7 +286,8 @@ router.get("/orders", (req, res) => {
     JOIN users u ON o.user_id = u.user_id
     JOIN user_addresses ua ON o.address_id = ua.address_id
     LEFT JOIN order_status_history osh ON o.order_id = osh.order_id
-    ${address_id ? 'WHERE o.address_id = ?' : ''}
+    WHERE o.status IN ('pending', 'ready')
+    ${address_id ? 'AND o.address_id = ?' : ''}
     GROUP BY 
       o.order_id, 
       o.user_id, 
@@ -300,47 +301,17 @@ router.get("/orders", (req, res) => {
     ORDER BY o.created_at DESC
   `;
   
-  const params = address_id ? [seller_id, address_id] : [seller_id];
-  
-  console.log('Executing query:', query);
-  console.log('With parameters:', params);
+  const params = [seller_id];
+  if (address_id) {
+    params.push(address_id);
+  }
   
   db.query(query, params, (err, results) => {
     if (err) {
-      console.error("Error fetching orders:", err);
-      return res.status(500).json({ error: "Failed to fetch orders" });
+      console.error('Error fetching orders:', err);
+      return res.status(500).json({ error: 'Failed to fetch orders' });
     }
-    
-    console.log('Query results:', results);
-    
-    // Process the results to format the status history and other details
-    const ordersWithHistory = results.map(order => {
-      const statusHistory = order.status_history ? 
-        order.status_history.split(',').map(status => {
-          const [newStatus, changedBy, timestamp] = status.split('|');
-          return {
-            status: newStatus,
-            changed_by: changedBy,
-            timestamp: new Date(timestamp)
-          };
-        }) : [];
-
-      return {
-        ...order,
-        status_history: statusHistory,
-        products: order.product_details ? order.product_details.split(', ') : [],
-        order_total: Number(order.order_total).toFixed(2)
-      };
-    });
-    
-    // Emit notifications for new orders
-    ordersWithHistory.forEach(order => {
-      if (new Date(order.created_at) > new Date(Date.now() - 60000)) {
-        emitNewOrderNotification(req, order);
-      }
-    });
-    
-    res.json(ordersWithHistory);
+    res.json(results);
   });
 });
 
@@ -384,9 +355,9 @@ router.get('/new-orders', (req, res) => {
   const { seller_id, address_id } = req.query;
     const query = `
       SELECT o.order_id AS id, u.full_name AS customer, ua.area AS address, 
-          GROUP_CONCAT(p.name) AS details, o.created_at
+          GROUP_CONCAT(p.name) AS details, o.created_at, o.total
       FROM (
-        SELECT DISTINCT o.order_id, o.user_id, o.created_at, o.address_id
+        SELECT DISTINCT o.order_id, o.user_id, o.created_at, o.address_id, o.total
         FROM orders o
         JOIN order_items oi ON o.order_id = oi.order_id
         JOIN products p ON oi.product_id = p.product_id
@@ -397,7 +368,7 @@ router.get('/new-orders', (req, res) => {
       JOIN user_addresses ua ON o.address_id = ua.address_id
       JOIN order_items oi ON o.order_id = oi.order_id
       JOIN products p ON oi.product_id = p.product_id
-      GROUP BY o.order_id, u.full_name, ua.area, o.created_at;
+      GROUP BY o.order_id, u.full_name, ua.area, o.created_at, o.total;
     `;
   
   // Prepare query parameters
@@ -425,13 +396,14 @@ router.get('/new-orders', (req, res) => {
         FROM orders o
         JOIN order_items oi ON o.order_id = oi.order_id
         JOIN products p ON oi.product_id = p.product_id
-        WHERE o.status = 'pending' AND p.seller_id = ?
+        WHERE o.status IN ('pending', 'ready') AND p.seller_id = ?
       ) o
       JOIN users u ON o.user_id = u.user_id
       JOIN user_addresses ua ON o.address_id = ua.address_id
       JOIN order_items oi ON o.order_id = oi.order_id
       JOIN products p ON oi.product_id = p.product_id
-      GROUP BY o.order_id, u.full_name, ua.area, o.status, o.created_at;
+      GROUP BY o.order_id, u.full_name, ua.area, o.status, o.created_at
+      ORDER BY o.created_at DESC;
     `;
   db.query(query, [seller_id], (err, results) => {
       if (err) {
@@ -483,9 +455,9 @@ router.get('/new-orders', (req, res) => {
   const { seller_id } = req.query;
     const query = `
     SELECT o.order_id AS id, u.full_name AS customer, ua.area AS address, 
-          o.status, o.created_at
+          o.status, o.created_at, o.total
       FROM (
-        SELECT DISTINCT o.order_id, o.user_id, o.status, o.created_at, o.address_id
+        SELECT DISTINCT o.order_id, o.user_id, o.status, o.created_at, o.address_id, o.total
         FROM orders o
         JOIN order_items oi ON o.order_id = oi.order_id
         JOIN products p ON oi.product_id = p.product_id
@@ -504,7 +476,8 @@ router.get('/new-orders', (req, res) => {
         customer: row.customer,
         address: row.address,
         status: row.status,
-      created_at: row.created_at
+        created_at: row.created_at,
+        total: row.total
       })));
     });
   });
@@ -708,7 +681,7 @@ router.get('/new-orders', (req, res) => {
 
   router.put('/update-order-status/:orderId', (req, res) => {
     const { orderId } = req.params;
-    const { status, seller_id } = req.body;
+    const { status, seller_id, delivery_person_id } = req.body;
 
     if (!seller_id) {
       return res.status(400).json({ error: 'Seller ID is required' });
@@ -739,39 +712,106 @@ router.get('/new-orders', (req, res) => {
         return res.status(404).json({ error: 'Order not found or does not belong to this seller' });
       }
 
-      const currentStatus = results[0].status;
-      
-      // If the status is already the same, return success
-      if (currentStatus === status) {
-        return res.json({ success: true, message: `Order status is already ${status}` });
+      // If status is 'Out For delivery', require delivery_person_id
+      if (status === 'Out For delivery' && !delivery_person_id) {
+        return res.status(400).json({ error: 'Delivery person ID is required for out for delivery status' });
       }
 
-      // Update the order status
-      const updateQuery = `
+      // Update order status
+      const updateOrderQuery = `
         UPDATE orders
         SET status = ?
         WHERE order_id = ?;
       `;
 
-      db.query(updateQuery, [status, orderId], (updateErr, updateResults) => {
-        if (updateErr) {
-          console.error('Database error updating order:', updateErr);
+      db.query(updateOrderQuery, [status, orderId], (err, result) => {
+        if (err) {
+          console.error('Database error:', err);
           return res.status(500).json({ error: 'Internal server error' });
         }
 
-        // Add entry to order_status_history
+        // Log the status change
         const historyQuery = `
-          INSERT INTO order_status_history (order_id, new_status, changed_by, timestamp)
-          VALUES (?, ?, ?, NOW());
+          INSERT INTO order_status_history (order_id, old_status, new_status, changed_by, timestamp)
+          VALUES (?, ?, ?, 'seller', NOW());
         `;
 
-        db.query(historyQuery, [orderId, status, `seller_${seller_id}`], (historyErr) => {
-          if (historyErr) {
-            console.error('Database error updating history:', historyErr);
-            // Don't return error here, as the main update was successful
+        db.query(historyQuery, [orderId, results[0].status, status], (err) => {
+          if (err) {
+            console.error('Error logging status change:', err);
           }
 
-          res.json({ success: true, message: `Order status updated to ${status}` });
+          // If delivery person is assigned, update the order_delivery table
+          if (delivery_person_id) {
+            // Check if a record already exists in order_delivery
+            const checkDeliveryQuery = `
+              SELECT delivery_id FROM order_delivery WHERE order_id = ?
+            `;
+            
+            db.query(checkDeliveryQuery, [orderId], (err, deliveryResults) => {
+              if (err) {
+                console.error('Error checking delivery record:', err);
+                return res.status(500).json({ error: 'Internal server error' });
+              }
+              
+              if (deliveryResults.length > 0) {
+                // Update existing record
+                const updateDeliveryQuery = `
+                  UPDATE order_delivery 
+                  SET agent_id = ?, pickup_time = NOW()
+                  WHERE order_id = ?;
+                `;
+                
+                db.query(updateDeliveryQuery, [delivery_person_id, orderId], (err) => {
+                  if (err) {
+                    console.error('Error updating delivery record:', err);
+                  }
+                  
+                  // Update delivery person status to busy
+                  const updateAgentStatusQuery = `
+                    UPDATE delivery_agents 
+                    SET status = 'busy'
+                    WHERE agent_id = ?;
+                  `;
+                  
+                  db.query(updateAgentStatusQuery, [delivery_person_id], (err) => {
+                    if (err) {
+                      console.error('Error updating delivery agent status:', err);
+                    }
+                    res.json({ message: 'Order status updated successfully' });
+                  });
+                });
+              } else {
+                // Insert new record
+                const insertDeliveryQuery = `
+                  INSERT INTO order_delivery (order_id, agent_id, pickup_time)
+                  VALUES (?, ?, NOW());
+                `;
+                
+                db.query(insertDeliveryQuery, [orderId, delivery_person_id], (err) => {
+                  if (err) {
+                    console.error('Error inserting delivery record:', err);
+                  }
+                  
+                  // Update delivery person status to busy
+                  const updateAgentStatusQuery = `
+                    UPDATE delivery_agents 
+                    SET status = 'busy'
+                    WHERE agent_id = ?;
+                  `;
+                  
+                  db.query(updateAgentStatusQuery, [delivery_person_id], (err) => {
+                    if (err) {
+                      console.error('Error updating delivery agent status:', err);
+                    }
+                    res.json({ message: 'Order status updated successfully' });
+                  });
+                });
+              }
+            });
+          } else {
+            res.json({ message: 'Order status updated successfully' });
+          }
         });
       });
     });
@@ -1842,6 +1882,118 @@ router.get("/canceled-orders", async (req, res) => {
     console.error('Error fetching canceled orders:', error);
     res.status(500).json({ error: 'Failed to fetch canceled orders' });
   }
+});
+
+// Get available delivery persons
+router.get('/available-delivery-persons', (req, res) => {
+  const query = `
+    SELECT 
+      da.agent_id as id,
+      da.name,
+      da.vehicle_type as vehicle,
+      da.license_number as license,
+      da.status,
+      da.mobilenumber as phone,
+      da.email
+    FROM delivery_agents da
+    WHERE da.is_approved = 1 
+    AND (da.status = 'available' OR da.status IS NULL)
+    AND da.is_rejected = 0
+    ORDER BY da.name;
+  `;
+  
+  console.log('Executing query for available delivery persons');
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Database error in fetching available delivery persons:", err);
+      return res.status(500).json({
+        error: "Database error",
+        details: err.message
+      });
+    }
+    console.log("Available delivery persons:", results);
+    res.json(results);
+  });
+});
+
+// 1. Total Revenue for Seller
+router.get('/total-revenue', (req, res) => {
+  const { seller_id } = req.query;
+  if (!seller_id) return res.status(400).json({ error: 'seller_id is required' });
+  const query = `
+    SELECT COALESCE(SUM(o.total), 0) AS total_revenue
+    FROM orders o
+    JOIN order_items oi ON o.order_id = oi.order_id
+    JOIN products p ON oi.product_id = p.product_id
+    WHERE p.seller_id = ? AND o.status = 'delivered'
+  `;
+  db.query(query, [seller_id], (err, results) => {
+    if (err) return res.status(500).json({ error: 'Database error', details: err.message });
+    res.json({ total_revenue: results[0].total_revenue });
+  });
+});
+
+// 2. Sales by Category for Seller
+router.get('/category-sales', (req, res) => {
+  const { seller_id } = req.query;
+  if (!seller_id) return res.status(400).json({ error: 'seller_id is required' });
+  const query = `
+    SELECT pc.name AS category, COALESCE(SUM(oi.quantity * oi.price), 0) AS total_sales
+    FROM orders o
+    JOIN order_items oi ON o.order_id = oi.order_id
+    JOIN products p ON oi.product_id = p.product_id
+    JOIN product_categories pc ON p.category_id = pc.category_id
+    WHERE p.seller_id = ? AND o.status = 'delivered'
+    GROUP BY pc.category_id
+    ORDER BY total_sales DESC
+  `;
+  db.query(query, [seller_id], (err, results) => {
+    if (err) return res.status(500).json({ error: 'Database error', details: err.message });
+    res.json(results);
+  });
+});
+
+// 3. Recent Orders for Seller
+router.get('/recent-orders', (req, res) => {
+  const { seller_id, limit = 5 } = req.query;
+  if (!seller_id) return res.status(400).json({ error: 'seller_id is required' });
+  const query = `
+    SELECT o.order_id, o.created_at, o.status, o.total, u.full_name AS customer_name
+    FROM orders o
+    JOIN order_items oi ON o.order_id = oi.order_id
+    JOIN products p ON oi.product_id = p.product_id
+    JOIN users u ON o.user_id = u.user_id
+    WHERE p.seller_id = ?
+    GROUP BY o.order_id
+    ORDER BY o.created_at DESC
+    LIMIT ?
+  `;
+  db.query(query, [seller_id, parseInt(limit)], (err, results) => {
+    if (err) return res.status(500).json({ error: 'Database error', details: err.message });
+    res.json(results);
+  });
+});
+
+// 4. Top Selling Products for Seller
+router.get('/top-products', (req, res) => {
+  const { seller_id, limit = 5 } = req.query;
+  if (!seller_id) return res.status(400).json({ error: 'seller_id is required' });
+  const query = `
+    SELECT p.product_id, p.name, pc.name AS category, pi.image_url AS image, SUM(oi.quantity) AS total_sold, SUM(oi.quantity * oi.price) AS revenue
+    FROM order_items oi
+    JOIN products p ON oi.product_id = p.product_id
+    JOIN product_categories pc ON p.category_id = pc.category_id
+    LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_primary = 1
+    JOIN orders o ON oi.order_id = o.order_id
+    WHERE p.seller_id = ? AND o.status = 'delivered'
+    GROUP BY p.product_id
+    ORDER BY total_sold DESC, revenue DESC
+    LIMIT ?
+  `;
+  db.query(query, [seller_id, parseInt(limit)], (err, results) => {
+    if (err) return res.status(500).json({ error: 'Database error', details: err.message });
+    res.json(results);
+  });
 });
 
 module.exports = router;

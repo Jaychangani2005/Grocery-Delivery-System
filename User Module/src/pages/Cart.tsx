@@ -11,11 +11,11 @@ interface CartProps {
   onUpdateCart: (productId: number, quantity: number) => void;
   onRemoveFromCart: (productId: number) => void;
   isLoggedIn: boolean;
-  user: { id: number; name: string; email: string } | null;
+  user: { name: string; email: string } | null;
   onLogout: () => void;
   selectedAddress: string;
   onAddressChange: (address: string) => void;
-  onPlaceOrder: (paymentMethod: string, orderData: any) => void;
+  onPlaceOrder: () => void;
 }
 
 const Cart = ({
@@ -59,31 +59,7 @@ const Cart = ({
 
     setIsLoading(true);
     try {
-      const subtotal = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-      const deliveryFee = 30;
-      const codFee = 30; // Assuming COD is the default payment method
-      const tax = subtotal * 0.18;
-      const total = subtotal + deliveryFee + codFee + tax;
-
-      const items = cartItems.map(item => ({
-        productId: item.product.id,
-        quantity: item.quantity,
-        price: item.product.price
-      }));
-
-      const orderData = {
-        userId: user?.id,
-        items,
-        addressId: selectedAddress,
-        paymentMethod: 'cod',
-        subtotal,
-        deliveryFee,
-        codFee,
-        tax,
-        total
-      };
-
-      await onPlaceOrder('cod', orderData);
+      await onPlaceOrder();
       navigate('/orders');
     } catch (error) {
       console.error('Error placing order:', error);
@@ -159,23 +135,13 @@ const Cart = ({
                     <span className="text-gray-900">₹{total.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Delivery Fee</span>
-                    <span className="text-gray-900">₹30.00</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">COD Fee</span>
-                    <span className="text-gray-900">₹30.00</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Tax (18%)</span>
-                    <span className="text-gray-900">₹{(total * 0.18).toFixed(2)}</span>
+                    <span className="text-gray-600">Delivery</span>
+                    <span className="text-gray-900">Free</span>
                   </div>
                   <div className="border-t pt-4">
                     <div className="flex justify-between">
                       <span className="text-lg font-medium text-gray-900">Total</span>
-                      <span className="text-lg font-medium text-gray-900">
-                        ₹{(total + 60 + (total * 0.18)).toFixed(2)}
-                      </span>
+                      <span className="text-lg font-medium text-gray-900">₹{total.toFixed(2)}</span>
                     </div>
                   </div>
                   <Button
@@ -195,4 +161,4 @@ const Cart = ({
   );
 };
 
-export default Cart;
+export default Cart; 

@@ -35,8 +35,8 @@ interface CartDrawerProps {
   selectedAddress: string;
   isLoggedIn: boolean;
   onLoginClick: () => void;
-  onPlaceOrder: (paymentMethod: string, orderData: any) => void;
-  addresses: string[];
+  onPlaceOrder: (paymentMethod: string) => void;
+  addresses: Address[];
   onAddressChange: (address: string) => void;
   userId?: number;
 }
@@ -81,34 +81,7 @@ const CartDrawer = ({
 
     setIsLoading(true);
     try {
-      // Calculate all the required values
-      const subtotal = cartItems.reduce((sum, item) => {
-        return sum + (item.product.price * item.quantity);
-      }, 0);
-      const deliveryFee = 30;
-      const codFee = selectedPaymentMethod === 'cod' ? 30 : 0;
-      const tax = subtotal * 0.18;
-      const finalTotal = subtotal + deliveryFee + codFee + tax;
-
-      const orderData = {
-        userId: userId,
-        items: cartItems.map(item => ({
-          id: item.product.id,
-          productId: item.product.id,
-          quantity: item.quantity,
-          price: item.product.price,
-          product: item.product
-        })),
-        addressId: parseInt(selectedAddress),
-        paymentMethod: paymentMethod,
-        subtotal: subtotal,
-        deliveryFee: deliveryFee,
-        codFee: codFee,
-        tax: tax,
-        total: finalTotal
-      };
-
-      await onPlaceOrder(paymentMethod, orderData);
+      await onPlaceOrder(paymentMethod);
       setShowOrderSummary(false);
       onClose();
     } catch (error) {
@@ -122,7 +95,7 @@ const CartDrawer = ({
   const total = cartItems.reduce((sum, item) => {
     return sum + (item.product.price * item.quantity);
   }, 0);
-  const deliveryFee = selectedPaymentMethod === 'cod' ? 30 : 0;
+  const deliveryFee = 30;
   const codFee = selectedPaymentMethod === 'cod' ? 30 : 0;
   const tax = total * 0.18;
   const finalTotal = total + deliveryFee + codFee + tax;
@@ -400,7 +373,6 @@ const CartDrawer = ({
           onPlaceOrder={handlePlaceOrder}
           paymentMethod={selectedPaymentMethod}
           isLoading={isLoading}
-          user={userId ? { id: userId, name: '', email: '' } : null}
         />
       )}
     </div>

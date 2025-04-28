@@ -3,7 +3,7 @@ import { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { UserContext } from "../context/UserContext";
-import { FiCheck, FiX, FiPackage, FiUser, FiMapPin, FiClock } from "react-icons/fi";
+import { FiCheck, FiX, FiPackage, FiUser, FiMapPin, FiClock, FiTruck } from "react-icons/fi";
 import PageWrapper from "../components/PageWrapper";
 
 const OrderDetails = () => {
@@ -13,6 +13,8 @@ const OrderDetails = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deliveryPersons, setDeliveryPersons] = useState([]);
+  const [selectedDeliveryPerson, setSelectedDeliveryPerson] = useState(null);
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -36,12 +38,29 @@ const OrderDetails = () => {
     }
   }, [orderId, user?.seller_id]);
 
+  useEffect(() => {
+    const fetchDeliveryPersons = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/dashboard/available-delivery-persons');
+        console.log('Fetched delivery persons:', response.data);
+        setDeliveryPersons(response.data);
+      } catch (err) {
+        console.error('Error fetching delivery persons:', err);
+      }
+    };
+
+    if (order?.order_status === 'ready') {
+      fetchDeliveryPersons();
+    }
+  }, [order?.order_status]);
+
   const handleUpdateStatus = async (newStatus) => {
     try {
       console.log(`Updating order ${orderId} status to ${newStatus} for seller ${user?.seller_id}`);
       const response = await axios.put(`http://localhost:5000/api/dashboard/update-order-status/${orderId}`, {
         status: newStatus,
-        seller_id: user?.seller_id
+        seller_id: user?.seller_id,
+        delivery_person_id: selectedDeliveryPerson
       });
       console.log('Update response:', response.data);
       
@@ -51,6 +70,7 @@ const OrderDetails = () => {
       });
       console.log('Updated order details:', detailsResponse.data);
       setOrder(detailsResponse.data);
+      setSelectedDeliveryPerson(null);
     } catch (err) {
       console.error('Error updating order status:', err);
       setError('Failed to update order status. Please try again.');
@@ -139,12 +159,40 @@ const OrderDetails = () => {
                 )}
                 {order.order_status === 'pending' && (
                   <button
-                    onClick={() => handleUpdateStatus('Out For delivery')}
+                    onClick={() => handleUpdateStatus('ready')}
                     className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center"
                   >
                     <FiPackage className="mr-2" />
-                    Start Delivery
+                    Mark as Ready
                   </button>
+                )}
+                {order.order_status === 'ready' && (
+                  <div className="flex items-center space-x-4">
+                    <select
+                      value={selectedDeliveryPerson || ''}
+                      onChange={(e) => setSelectedDeliveryPerson(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[300px]"
+                    >
+                      <option value="">Select Delivery Person</option>
+                      {deliveryPersons.map((person) => (
+                        <option key={person.id} value={person.id}>
+                          {person.name} ({person.vehicle} - {person.phone})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => handleUpdateStatus('Out For delivery')}
+                      disabled={!selectedDeliveryPerson}
+                      className={`px-4 py-2 text-white rounded-md transition-colors flex items-center ${
+                        selectedDeliveryPerson
+                          ? 'bg-blue-500 hover:bg-blue-600'
+                          : 'bg-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      <FiTruck className="mr-2" />
+                      Assign Delivery
+                    </button>
+                  </div>
                 )}
                 {order.order_status === 'Out For delivery' && (
                   <button
@@ -212,9 +260,9 @@ const OrderDetails = () => {
                     <p className="font-medium">₹{product.total}</p>
                   </div>
                 ))}
-                <div className="flex justify-between items-center pt-4">
-                  <p className="text-lg font-semibold">Total Amount</p>
-                  <p className="text-lg font-semibold text-orange-500">₹{order.order_total}</p>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">Total Amount:</span>
+                  <span className="font-medium text-gray-900">₹{order.order_total}</span>
                 </div>
               </div>
             </div>

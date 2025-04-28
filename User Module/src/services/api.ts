@@ -77,10 +77,6 @@ export interface PlaceOrderData {
   addressId: number;
   paymentMethod: string;
   total: number;
-  subtotal: number;
-  deliveryFee: number;
-  codFee: number;
-  tax: number;
 }
 
 interface ApiError {
@@ -908,34 +904,14 @@ export const orderService = {
       const formattedOrderData = {
         userId: orderData.userId,
         items: orderData.items.map(item => ({
-          productId: item.productId,
+          productId: item.product.id,
           quantity: item.quantity,
-          price: item.price
+          price: item.product.price
         })),
         addressId: orderData.addressId,
         paymentMethod: orderData.paymentMethod || 'cod',
-        total: orderData.total,
-        subtotal: orderData.subtotal,
-        deliveryFee: orderData.deliveryFee,
-        codFee: orderData.codFee,
-        tax: orderData.tax
+        total: orderData.total
       };
-
-      // Validate all required numeric fields
-      if (!formattedOrderData.subtotal || !formattedOrderData.tax || 
-          !formattedOrderData.deliveryFee || formattedOrderData.codFee === undefined) {
-        // Calculate missing values
-        formattedOrderData.subtotal = formattedOrderData.subtotal || 
-          orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        formattedOrderData.deliveryFee = formattedOrderData.deliveryFee || 30;
-        formattedOrderData.codFee = formattedOrderData.codFee || 
-          (orderData.paymentMethod === 'cod' ? 30 : 0);
-        formattedOrderData.tax = formattedOrderData.tax || 
-          (formattedOrderData.subtotal * 0.18);
-        formattedOrderData.total = formattedOrderData.subtotal + 
-          formattedOrderData.deliveryFee + formattedOrderData.codFee + 
-          formattedOrderData.tax;
-      }
 
       console.log('Formatted order data being sent:', formattedOrderData);
 
@@ -955,14 +931,10 @@ export const orderService = {
 
       console.log('Order placed successfully:', response.data);
       return response.data;
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error('Error placing order:', error.message);
-        if (axios.isAxiosError(error) && error.response?.data) {
-          console.error('Server response:', error.response.data);
-        }
-      } else {
-        console.error('An unknown error occurred');
+    } catch (error) {
+      console.error('Error placing order:', error);
+      if (error.response) {
+        console.error('Server response:', error.response.data);
       }
       throw error;
     }

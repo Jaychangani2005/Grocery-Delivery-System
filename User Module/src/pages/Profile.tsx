@@ -7,20 +7,11 @@ import { Label } from '@/components/ui/label';
 import { userService } from '@/services/api';
 
 interface ProfileProps {
-  cartItems: { product: Product; quantity: number }[];
-  onAddToCart: (product: Product, quantity: number) => void;
-  onUpdateCart: (productId: number, quantity: number) => void;
-  onRemoveFromCart: (productId: number) => void;
-  isCartOpen: boolean;
-  toggleCart: () => void;
   isLoggedIn: boolean;
   user: { name: string; email: string } | null;
   onLogout: () => void;
-  selectedAddress: string;
-  onAddressChange: (address: string) => void;
-  onLoginClick: () => void;
   addresses: string[];
-  onPlaceOrder: (paymentMethod: string, feeComponents?: any) => void;
+  onAddressChange: (address: string) => void;
 }
 
 const Profile = ({

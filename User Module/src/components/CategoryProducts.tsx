@@ -5,7 +5,6 @@ import BestSellerCard from "./BestSellerCard";
 import CartDrawer from "./CartDrawer";
 import { Product, CartItem, productService } from "@/services/api";
 import { toast } from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
 
 interface CategoryProductsProps {
   categoryId: string | number;  // Allow both string and number
@@ -41,7 +40,6 @@ const CategoryProducts = ({
   const [loaded, setLoaded] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -80,10 +78,6 @@ const CategoryProducts = ({
     return item ? item.quantity : 0;
   };
 
-  const handleProductClick = (productId: number) => {
-    navigate(`/product/${productId}`);
-  };
-
   if (isLoading) {
     return (
       <section className="pt-6 pb-3 md:py-3 bg-white dark:bg-gray-800">
@@ -119,15 +113,17 @@ const CategoryProducts = ({
         <div className="relative">
           <div
             ref={scrollRef}
-            className="flex space-x-3 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 overflow-y-auto max-h-[600px] pr-2"
+            style={{ 
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#CBD5E0 #EDF2F7'
+            }}
           >
             {products.map((product, index) => (
               <div
                 key={product.id}
                 className={cn(
-                  "flex-none snap-start",
-                  "w-[45%] sm:w-[30%] md:w-[23%] lg:w-[19%]",
+                  "flex-none",
                   loaded ? "translate-y-0 opacity-100" : "translate-y-0 opacity-0"
                 )}
                 style={{ transitionDelay: `${index * 50}ms` }}
@@ -140,7 +136,6 @@ const CategoryProducts = ({
                   isInCart={isProductInCart(product.id)}
                   cartQuantity={getCartQuantity(product.id)}
                   toggleCart={toggleCart}
-                  onClick={() => handleProductClick(product.id)}
                 />
               </div>
             ))}

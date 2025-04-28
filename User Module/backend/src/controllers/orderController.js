@@ -5,17 +5,17 @@ const placeOrder = async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const { userId, items, addressId, paymentMethod, total, subtotal, deliveryFee, codFee, tax } = req.body;
+    const { userId, items, addressId, paymentMethod, total } = req.body;
     
-    console.log('Received order data:', { userId, items, addressId, paymentMethod, total, subtotal, deliveryFee, codFee, tax });
+    console.log('Received order data:', { userId, items, addressId, paymentMethod, total });
     
     // Validate required fields
-    if (!userId || !items || !addressId || !paymentMethod || total === undefined || subtotal === undefined || deliveryFee === undefined || codFee === undefined || tax === undefined) {
-      console.error('Missing required fields:', { userId, items, addressId, paymentMethod, total, subtotal, deliveryFee, codFee, tax });
+    if (!userId || !items || !addressId || !paymentMethod || total === undefined) {
+      console.error('Missing required fields:', { userId, items, addressId, paymentMethod, total });
       return res.status(400).json({
         success: false,
         message: 'Missing required fields',
-        received: { userId, items, addressId, paymentMethod, total, subtotal, deliveryFee, codFee, tax }
+        received: { userId, items, addressId, paymentMethod, total }
       });
     }
 
@@ -43,11 +43,11 @@ const placeOrder = async (req, res) => {
     
     const now = new Date();
 
-    // 1. Create the order with fee components
+    // 1. Create the order
     const [orderResult] = await connection.query(
-      `INSERT INTO orders (user_id, address_id, total, subtotal, deliveryfee, codfee, tax, status, payment_method, created_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)`,
-      [userId, addressId, total, subtotal, deliveryFee, codFee, tax, paymentMethod, now]
+      `INSERT INTO orders (user_id, address_id, total, status, payment_method, created_at) 
+       VALUES (?, ?, ?, 'new', ?, ?)`,
+      [userId, addressId, total, paymentMethod, now]
     );
     const orderId = orderResult.insertId;
     console.log('Created order with ID:', orderId);

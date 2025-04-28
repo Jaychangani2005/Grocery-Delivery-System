@@ -104,7 +104,7 @@ const NewOrders = () => {
                       <div className="space-y-2 mb-4">
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-gray-500">Total Amount:</span>
-                          <span className="font-medium text-gray-900">₹{order.total_amount}</span>
+                          <span className="font-medium text-gray-900">₹{order.total}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-gray-500">Date:</span>

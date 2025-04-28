@@ -8,8 +8,6 @@ import Orders from './pages/Orders';
 import Cart from './pages/Cart';
 import Profile from './pages/Profile';
 import Addresses from './pages/Addresses';
-import CategoryPage from './pages/CategoryPage';
-import ProductPage from './pages/ProductPage';
 import { authService } from './services/auth';
 import { orderService, userService, PlaceOrderData, Address } from './services/api';
 import { toast } from 'react-hot-toast';
@@ -92,7 +90,6 @@ function App() {
       }
       const newItem = await cartService.addToCart(product.id, quantity);
       setCartItems(prev => [...prev, { product, quantity }]);
-      setIsCartOpen(true); // Open cart drawer when item is added
     } catch (error) {
       console.error('Error adding to cart:', error);
       throw error;
@@ -137,7 +134,7 @@ function App() {
     setIsCartOpen(prev => !prev);
   };
 
-  const handlePlaceOrder = async (paymentMethod: string, feeComponents?: any) => {
+  const handlePlaceOrder = async (paymentMethod: string) => {
     if (!user || !selectedAddress) {
       toast.error('Please select an address and ensure you are logged in');
       return;
@@ -151,71 +148,29 @@ function App() {
         return;
       }
 
-      // If feeComponents is provided, use it directly
-      if (feeComponents && 
-          typeof feeComponents.subtotal !== 'undefined' && 
-          typeof feeComponents.deliveryFee !== 'undefined' && 
-          typeof feeComponents.codFee !== 'undefined' && 
-          typeof feeComponents.tax !== 'undefined' && 
-          typeof feeComponents.total !== 'undefined') {
-        
-        // Format order data with provided fee components
-        const orderData: PlaceOrderData = {
-          userId: user.id,
-          items: cartItems.map(item => ({
-            id: item.id,
-            productId: item.product.id,
-            quantity: item.quantity,
-            price: item.product.price,
-            product: item.product
-          })),
-          addressId: selectedAddressObj.address_id,
-          paymentMethod,
-          total: feeComponents.total,
-          subtotal: feeComponents.subtotal,
-          deliveryFee: feeComponents.deliveryFee,
-          codFee: feeComponents.codFee,
-          tax: feeComponents.tax
-        };
-
-        console.log('Placing order with provided fee components:', orderData);
-        const response = await orderService.placeOrder(orderData);
-        console.log('Order placed successfully:', response);
-
-        // Clear cart and close cart drawer
-        setCartItems([]);
-        setIsCartOpen(false);
-        toast.success('Order placed successfully');
-        return;
-      }
-
-      // Otherwise calculate the values
-      const subtotal = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-      const deliveryFee = 30;
-      const codFee = paymentMethod === 'cod' ? 30 : 0;
-      const tax = subtotal * 0.18;
-      const total = subtotal + deliveryFee + codFee + tax;
+      // Calculate total
+      const total = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
 
       // Format order data
       const orderData: PlaceOrderData = {
         userId: user.id,
         items: cartItems.map(item => ({
-          id: item.id,
-          productId: item.product.id,
-          quantity: item.quantity,
-          price: item.product.price,
-          product: item.product
+          product: {
+            id: item.product.id,
+            name: item.product.name,
+            price: item.product.price,
+            description: item.product.description,
+            unit: item.product.unit,
+            image: item.product.image
+          },
+          quantity: item.quantity
         })),
         addressId: selectedAddressObj.address_id,
         paymentMethod,
-        total: total,
-        subtotal: subtotal,
-        deliveryFee: deliveryFee,
-        codFee: codFee,
-        tax: tax
+        total
       };
 
-      console.log('Placing order with calculated values:', orderData);
+      console.log('Placing order with data:', orderData);
       const response = await orderService.placeOrder(orderData);
       console.log('Order placed successfully:', response);
 
@@ -229,60 +184,129 @@ function App() {
     }
   };
 
-  // Common props for all routes
-  const commonProps = {
-    cartItems,
-    onAddToCart: handleAddToCart,
-    onUpdateCart: handleUpdateCart,
-    onRemoveFromCart: handleRemoveFromCart,
-    isCartOpen,
-    toggleCart,
-    isLoggedIn,
-    user,
-    onLogout: handleLogout,
-    selectedAddress,
-    onAddressChange: handleAddressChange,
-    onLoginClick: () => setIsCartOpen(true),
-    addresses,
-    onPlaceOrder: handlePlaceOrder
-  };
-
-  // Props for components that expect string[] for addresses
-  const addressStringProps = {
-    ...commonProps,
-    addresses: addresses.map(addr => addr.address_id.toString())
-  };
-
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
         <Toaster position="top-right" />
-        <Navbar {...commonProps} />
+        <Navbar 
+          isLoggedIn={isLoggedIn}
+          user={user}
+          onLogout={handleLogout}
+          cartItems={cartItems}
+          isCartOpen={isCartOpen}
+          toggleCart={toggleCart}
+          selectedAddress={selectedAddress}
+          onAddressChange={handleAddressChange}
+        />
         <Routes>
-          <Route path="/" element={<Home {...commonProps} />} />
-          <Route path="/auth" element={<Auth onLogin={handleLogin} isLoggedIn={isLoggedIn} />} />
-          <Route path="/orders" element={
-            <ProtectedRoute isLoggedIn={isLoggedIn}>
-              <Orders {...commonProps} />
-            </ProtectedRoute>
+          <Route path="/" element={
+            <Home
+              cartItems={cartItems}
+              onAddToCart={handleAddToCart}
+              onUpdateCart={handleUpdateCart}
+              onRemoveFromCart={handleRemoveFromCart}
+              isCartOpen={isCartOpen}
+              toggleCart={toggleCart}
+              isLoggedIn={isLoggedIn}
+              user={user}
+              onLogout={handleLogout}
+              selectedAddress={selectedAddress}
+              onAddressChange={handleAddressChange}
+              onLoginClick={() => window.location.href = '/auth'}
+              addresses={addresses}
+              onPlaceOrder={handlePlaceOrder}
+            />
           } />
+          <Route path="/auth" element={<Auth onLogin={handleLogin} />} />
+          <Route path="/category/:categoryName" element={
+            <Home
+              cartItems={cartItems}
+              onAddToCart={handleAddToCart}
+              onUpdateCart={handleUpdateCart}
+              onRemoveFromCart={handleRemoveFromCart}
+              isCartOpen={isCartOpen}
+              toggleCart={toggleCart}
+              isLoggedIn={isLoggedIn}
+              user={user}
+              onLogout={handleLogout}
+              selectedAddress={selectedAddress}
+              onAddressChange={handleAddressChange}
+              onLoginClick={() => window.location.href = '/auth'}
+              addresses={addresses}
+              onPlaceOrder={handlePlaceOrder}
+            />
+          } />
+          <Route path="/product/:productId" element={
+            <Home
+              cartItems={cartItems}
+              onAddToCart={handleAddToCart}
+              onUpdateCart={handleUpdateCart}
+              onRemoveFromCart={handleRemoveFromCart}
+              isCartOpen={isCartOpen}
+              toggleCart={toggleCart}
+              isLoggedIn={isLoggedIn}
+              user={user}
+              onLogout={handleLogout}
+              selectedAddress={selectedAddress}
+              onAddressChange={handleAddressChange}
+              onLoginClick={() => window.location.href = '/auth'}
+              addresses={addresses}
+              onPlaceOrder={handlePlaceOrder}
+            />
+          } />
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn}>
+                <Orders 
+                  isLoggedIn={isLoggedIn}
+                  user={user}
+                  onLogout={handleLogout}
+                  selectedAddress={selectedAddress}
+                  onAddressChange={handleAddressChange}
+                />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/cart" element={
-            <ProtectedRoute isLoggedIn={isLoggedIn}>
-              <Cart {...commonProps} />
+            <ProtectedRoute>
+              <Cart 
+                cartItems={cartItems}
+                onUpdateCart={handleUpdateCart}
+                onRemoveFromCart={handleRemoveFromCart}
+                isLoggedIn={isLoggedIn}
+                user={user}
+                onLogout={handleLogout}
+                selectedAddress={selectedAddress}
+                onAddressChange={handleAddressChange}
+              />
             </ProtectedRoute>
           } />
           <Route path="/profile" element={
-            <ProtectedRoute isLoggedIn={isLoggedIn}>
-              <Profile {...commonProps} />
+            <ProtectedRoute>
+              <Profile 
+                isLoggedIn={isLoggedIn}
+                user={user}
+                onLogout={handleLogout}
+                addresses={addresses}
+                onAddressChange={handleAddressChange}
+              />
             </ProtectedRoute>
           } />
           <Route path="/addresses" element={
-            <ProtectedRoute isLoggedIn={isLoggedIn}>
-              <Addresses {...addressStringProps} />
+            <ProtectedRoute>
+              <Addresses 
+                isLoggedIn={isLoggedIn}
+                user={user}
+                onLogout={handleLogout}
+                addresses={addresses}
+                onAddressChange={handleAddressChange}
+                cartItems={cartItems}
+                isCartOpen={isCartOpen}
+                toggleCart={toggleCart}
+              />
             </ProtectedRoute>
           } />
-          <Route path="/category/:category" element={<CategoryPage {...commonProps} />} />
-          <Route path="/product/:productId" element={<ProductPage {...commonProps} />} />
         </Routes>
       </div>
     </Router>
