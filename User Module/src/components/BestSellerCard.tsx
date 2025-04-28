@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "./ui/badge";
 import { Product } from "@/services/api";
+import { toast } from "sonner";
 
 // Constants
 const IMAGE_BASE_URL = 'http://localhost:5000'; // Backend static files server URL
@@ -32,16 +33,26 @@ const BestSellerCard = ({
 }: BestSellerCardProps) => {
   const [loaded, setLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     setLoaded(true);
   }, []);
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    onAddToCart(product, 1);
-    toggleCart();
+    try {
+      setIsUpdating(true);
+      await onAddToCart(product, 1);
+      toast.success(`${product.name} added to cart`);
+      toggleCart();
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error(error.message || 'Failed to add item to cart');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleCardClick = () => {
@@ -52,10 +63,15 @@ const BestSellerCard = ({
     }
   };
 
-  const handleUpdateQuantity = (e: React.MouseEvent, newQuantity: number) => {
-    e.stopPropagation();
-    if (newQuantity === 0) {
+  const handleUpdateQuantity = async (newQuantity: number) => {
+    if (!onUpdateCart) return;
+    
+    if (newQuantity < 1) {
       onRemoveFromCart(product.id);
+    } else if (newQuantity > product.stock) {
+      toast.error(`Only ${product.stock} items available in stock`);
+    } else if (newQuantity > 10) {
+      toast.error("Maximum 10 items allowed per product");
     } else {
       onUpdateCart(product.id, newQuantity);
     }
@@ -64,8 +80,7 @@ const BestSellerCard = ({
   const getImageUrl = (imagePath: string) => {
     if (!imagePath) return "https://placehold.co/300x300/e2e8f0/1e293b?text=No+Image";
     if (imagePath.startsWith('http')) return imagePath;
-    // If the image path is relative, prepend the backend URL
-    return `http://localhost:5000${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
+    return `${IMAGE_BASE_URL}${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
   };
 
   return (
@@ -129,7 +144,8 @@ const BestSellerCard = ({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 flex items-center justify-center p-0"
-                onClick={(e) => handleUpdateQuantity(e, cartQuantity - 1)}
+                onClick={(e) => handleUpdateQuantity(cartQuantity - 1)}
+                disabled={isUpdating || cartQuantity <= 1}
               >
                 <Minus className="h-4 w-4" />
               </Button>
@@ -139,9 +155,9 @@ const BestSellerCard = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 flex items-center justify-center p-0"
-                onClick={(e) => handleUpdateQuantity(e, cartQuantity + 1)}
-                disabled={cartQuantity >= 10}
+                className="h-8 w-8"
+                onClick={() => handleUpdateQuantity(cartQuantity + 1)}
+                disabled={cartQuantity >= 10 || cartQuantity >= product.stock}
               >
                 <Plus className="h-4 w-4" />
               </Button>
@@ -152,9 +168,10 @@ const BestSellerCard = ({
             size="sm"
             className="rounded-md h-8 text-xs w-full transition-all"
             onClick={handleAddToCart}
+            disabled={isUpdating || !product.stock}
           >
             <ShoppingCart className="h-4 w-4 mr-1" />
-            Add to Cart
+            {product.stock ? "Add to Cart" : "Out of Stock"}
           </Button>
         )}
       </div>

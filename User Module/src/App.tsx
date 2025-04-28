@@ -88,8 +88,26 @@ function App() {
       if (!isLoggedIn) {
         throw new Error('Please login to add items to cart');
       }
-      const newItem = await cartService.addToCart(product.id, quantity);
-      setCartItems(prev => [...prev, { product, quantity }]);
+      
+      // Check if product already exists in cart
+      const existingItem = cartItems.find(item => item.product.id === product.id);
+      
+      if (existingItem) {
+        // If product exists, update its quantity
+        const newQuantity = existingItem.quantity + quantity;
+        await cartService.updateQuantity(product.id, newQuantity);
+        setCartItems(prev => 
+          prev.map(item => 
+            item.product.id === product.id 
+              ? { ...item, quantity: newQuantity } 
+              : item
+          )
+        );
+      } else {
+        // If product doesn't exist, add it as a new item
+        const newItem = await cartService.addToCart(product.id, quantity);
+        setCartItems(prev => [...prev, { product, quantity }]);
+      }
     } catch (error) {
       console.error('Error adding to cart:', error);
       throw error;

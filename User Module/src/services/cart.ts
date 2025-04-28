@@ -87,6 +87,7 @@ export class CartService {
 
   async updateQuantity(productId: number, quantity: number): Promise<CartItem> {
     try {
+      // Update using the product ID directly
       const response = await this.api.put<CartItem>(`/cart/items/${productId}`, {
         quantity
       });

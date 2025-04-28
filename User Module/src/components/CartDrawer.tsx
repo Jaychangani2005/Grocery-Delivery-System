@@ -61,8 +61,15 @@ const CartDrawer = ({
   const navigate = useNavigate();
   
   const handleQuantityChange = (productId: number, newQuantity: number) => {
+    const item = cartItems.find(item => item.product.id === productId);
+    if (!item) return;
+
     if (newQuantity < 1) {
       removeFromCart(productId);
+    } else if (newQuantity > item.product.stock) {
+      toast.error(`Only ${item.product.stock} items available in stock`);
+    } else if (newQuantity > 10) {
+      toast.error("Maximum 10 items allowed per product");
     } else {
       updateQuantity(productId, newQuantity);
     }
@@ -161,7 +168,7 @@ const CartDrawer = ({
                             variant="outline"
                             size="sm"
                             onClick={() => handleQuantityChange(item.product.id, item.quantity + 1)}
-                            disabled={item.quantity >= 10}
+                            disabled={item.quantity >= 10 || item.quantity >= item.product.stock}
                           >
                             <Plus className="h-4 w-4" />
                           </Button>
@@ -259,6 +266,7 @@ const CartDrawer = ({
                         size="icon"
                         className="h-8 w-8"
                         onClick={() => handleQuantityChange(item.product.id, item.quantity + 1)}
+                        disabled={item.quantity >= 10 || item.quantity >= item.product.stock}
                       >
                         <Plus className="h-4 w-4" />
                       </Button>

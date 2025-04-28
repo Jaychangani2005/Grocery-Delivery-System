@@ -1,8 +1,14 @@
 import { useState, useEffect } from "react";
 import { Plus, Minus, ShoppingCart } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 import { Product } from "@/services/api";
+import { toast } from "sonner";
+
+// Constants
+const IMAGE_BASE_URL = 'http://localhost:5000'; // Backend static files server URL
 
 interface FeaturedProductCardProps {
   product: Product;
@@ -10,12 +16,9 @@ interface FeaturedProductCardProps {
   onUpdateCart: (productId: number, quantity: number) => void;
   onRemoveFromCart: (productId: number) => void;
   isInCart: boolean;
-  cartQuantity?: number;
-  isCartOpen: boolean;
+  cartQuantity: number;
   toggleCart: () => void;
-  selectedAddress: string;
-  isLoggedIn: boolean;
-  onLoginClick: () => void;
+  onClick?: () => void;
 }
 
 const FeaturedProductCard = ({
@@ -23,78 +26,101 @@ const FeaturedProductCard = ({
   onAddToCart,
   onUpdateCart,
   onRemoveFromCart,
-  isInCart = false,
-  cartQuantity = 0,
-  isCartOpen,
+  isInCart,
+  cartQuantity,
   toggleCart,
-  selectedAddress,
-  isLoggedIn,
-  onLoginClick,
+  onClick,
 }: FeaturedProductCardProps) => {
-  const [quantity, setQuantity] = useState(isInCart ? cartQuantity : 1);
-  const [isAddedToCart, setIsAddedToCart] = useState(isInCart);
   const [loaded, setLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setLoaded(true);
   }, []);
 
-  const handleAddToCart = () => {
-    if (!isLoggedIn) {
-      onLoginClick();
-      return;
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      setIsUpdating(true);
+      await onAddToCart(product, 1);
+      toast.success(`${product.name} added to cart`);
+      toggleCart();
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error(error.message || 'Failed to add item to cart');
+    } finally {
+      setIsUpdating(false);
     }
-    onAddToCart(product, quantity);
-    setIsAddedToCart(true);
   };
 
-  const incrementQuantity = () => {
-    setQuantity((prev) => {
-      const newQuantity = Math.min(prev + 1, 10);
-      if (isAddedToCart) onUpdateCart(product.id, newQuantity);
-      return newQuantity;
-    });
+  const handleCardClick = () => {
+    if (onClick) {
+      onClick();
+    } else {
+      navigate(`/product/${product.id}`);
+    }
   };
 
-  const decrementQuantity = () => {
-    setQuantity((prev) => {
-      const newQuantity = prev - 1;
-
-      if (newQuantity < 1) {
-        setIsAddedToCart(false);
-        onRemoveFromCart(product.id);
-        return 1;
-      }
-
-      if (isAddedToCart) onUpdateCart(product.id, newQuantity);
-      return newQuantity;
-    });
+  const handleUpdateQuantity = async (newQuantity: number) => {
+    if (!onUpdateCart) return;
+    
+    if (newQuantity < 1) {
+      onRemoveFromCart(product.id);
+    } else if (newQuantity > product.stock) {
+      toast.error(`Only ${product.stock} items available in stock`);
+    } else if (newQuantity > 10) {
+      toast.error("Maximum 10 items allowed per product");
+    } else {
+      onUpdateCart(product.id, newQuantity);
+    }
   };
 
   const getImageUrl = (imagePath: string) => {
     if (!imagePath) return "https://placehold.co/300x300/e2e8f0/1e293b?text=No+Image";
     if (imagePath.startsWith('http')) return imagePath;
-    // If the image path is relative, prepend the backend URL
-    return `http://localhost:5000${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
+    return `${IMAGE_BASE_URL}${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
   };
 
   return (
     <div
       className={cn(
-        "bg-white dark:bg-gray-800 rounded-xl shadow-soft overflow-hidden hover:shadow-md transition-shadow h-full",
+        "bg-white dark:bg-gray-800 rounded-xl shadow-soft overflow-hidden hover:shadow-md transition-shadow h-full cursor-pointer",
         loaded ? "opacity-100" : "opacity-0"
       )}
+      onClick={handleCardClick}
     >
       <div className="relative">
         <div className="relative aspect-square overflow-hidden">
-          <img
-            src={getImageUrl(product.image)}
-            alt={product.name}
-            className="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-300"
-            onError={() => setImageError(true)}
-          />
+          {!imageError ? (
+            <img
+              src={getImageUrl(product.image)}
+              alt={product.name}
+              className="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-300"
+              onLoad={() => setLoaded(true)}
+              onError={(e) => {
+                console.error('Image failed to load:', product.image);
+                console.error('Attempted URL:', getImageUrl(product.image));
+                setImageError(true);
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700">
+              <span className="text-gray-400 dark:text-gray-500 text-sm">Image not available</span>
+            </div>
+          )}
         </div>
+        {product.oldPrice && (
+          <Badge className="absolute top-2 left-2 bg-red-500 text-white border-none text-xs font-medium px-2 py-0.5">
+            -{Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}%
+          </Badge>
+        )}
+        {product.isOrganic && (
+          <Badge className="absolute top-2 right-2 bg-green-500 text-white border-none text-xs font-medium px-2 py-0.5">
+            Organic
+          </Badge>
+        )}
       </div>
 
       <div className="p-3">
@@ -102,34 +128,36 @@ const FeaturedProductCard = ({
           {product.name}
         </h3>
 
-        {product.unit && (
-          <p className="text-xs text-muted-foreground">{product.unit}</p>
-        )}
-
         <div className="flex items-center gap-2 mb-3">
           <span className="font-bold text-xs sm:text-sm">₹{product.price.toFixed(2)}</span>
+          {product.oldPrice && (
+            <span className="text-xs text-muted-foreground line-through">
+              ₹{product.oldPrice.toFixed(2)}
+            </span>
+          )}
         </div>
 
-        {isAddedToCart ? (
+        {isInCart ? (
           <div className="flex items-center gap-2">
             <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 flex items-center justify-center p-0"
-                onClick={decrementQuantity}
+                onClick={(e) => handleUpdateQuantity(cartQuantity - 1)}
+                disabled={isUpdating || cartQuantity <= 1}
               >
                 <Minus className="h-4 w-4" />
               </Button>
               <span className="w-10 text-center text-sm font-medium select-none">
-                {quantity}
+                {cartQuantity}
               </span>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 flex items-center justify-center p-0"
-                onClick={incrementQuantity}
-                disabled={quantity >= 10}
+                className="h-8 w-8"
+                onClick={() => handleUpdateQuantity(cartQuantity + 1)}
+                disabled={cartQuantity >= 10 || cartQuantity >= product.stock}
               >
                 <Plus className="h-4 w-4" />
               </Button>
@@ -140,9 +168,10 @@ const FeaturedProductCard = ({
             size="sm"
             className="rounded-md h-8 text-xs w-full transition-all"
             onClick={handleAddToCart}
+            disabled={isUpdating || !product.stock}
           >
             <ShoppingCart className="h-4 w-4 mr-1" />
-            Add to Cart
+            {product.stock ? "Add to Cart" : "Out of Stock"}
           </Button>
         )}
       </div>

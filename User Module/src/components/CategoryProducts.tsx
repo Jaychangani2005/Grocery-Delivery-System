@@ -10,6 +10,7 @@ interface CategoryProductsProps {
   categoryId: string | number;  // Allow both string and number
   categoryName: string;
   description: string;
+  products: Product[];
   cartItems: CartItem[];
   onAddToCart: (product: Product, quantity: number) => void;
   onUpdateCart: (productId: number, quantity: number) => void;
@@ -25,6 +26,7 @@ const CategoryProducts = ({
   categoryId,
   categoryName,
   description,
+  products,
   cartItems,
   onAddToCart,
   onUpdateCart,
@@ -38,64 +40,24 @@ const CategoryProducts = ({
   const isMobile = useIsMobile();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setIsLoading(true);
-        console.log('Fetching products for category:', categoryId, categoryName);
-        const identifier = typeof categoryId === 'number' ? categoryId : categoryName.toLowerCase();
-        const categoryProducts = await productService.getProductsByCategory(identifier);
-        console.log('Fetched products:', categoryProducts);
-        // Only set products if there are any available with stock
-        const availableProducts = categoryProducts.filter(p => p.stock > 0);
-        setProducts(availableProducts); // Show all available products
-      } catch (error) {
-        console.error('Error fetching products:', error);
-        toast.error('Failed to load products');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchProducts();
     setLoaded(true);
-  }, [categoryId, categoryName]);
+  }, []);
+
+  const isProductInCart = (productId: number) => {
+    return cartItems.some(item => item.product.id === productId);
+  };
+
+  const getCartQuantity = (productId: number) => {
+    const item = cartItems.find(item => item.product.id === productId);
+    return item ? item.quantity : 0;
+  };
 
   // Don't render anything if there are no products and we're not loading
   if (!isLoading && products.length === 0) {
     return null;
-  }
-
-  const isProductInCart = (productId: number) => {
-    return cartItems.some(item => item.productId === productId);
-  };
-
-  const getCartQuantity = (productId: number) => {
-    const item = cartItems.find(item => item.productId === productId);
-    return item ? item.quantity : 0;
-  };
-
-  if (isLoading) {
-    return (
-      <section className="pt-6 pb-3 md:py-3 bg-white dark:bg-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="animate-pulse">
-            <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
-            <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded mb-6"></div>
-            <div className="flex space-x-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="w-[45%] sm:w-[30%] md:w-[23%] lg:w-[19%]">
-                  <div className="aspect-square bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-    );
   }
 
   return (
@@ -142,6 +104,7 @@ const CategoryProducts = ({
           </div>
         </div>
       </div>
+      
       <CartDrawer
         isOpen={isCartOpen}
         onClose={toggleCart}
