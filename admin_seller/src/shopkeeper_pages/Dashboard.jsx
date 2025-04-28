@@ -489,18 +489,19 @@ const Dashboard = () => {
       {loading ? (
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
-      </div>
+        </div>
       ) : (
-        <div className="p-4 md:p-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800">Dashboard</h1>
+        <div className="p-4 md:p-6 space-y-6">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Dashboard</h1>
             
             {/* Period Selector */}
-            <div className="flex items-center bg-white rounded-lg shadow-sm p-1 w-full md:w-auto">
-              <div className="flex items-center w-full md:w-auto">
+            <div className="w-full sm:w-auto">
+              <div className="flex items-center bg-white rounded-lg shadow-sm p-2">
                 <FiCalendar className="text-gray-500 mr-2" />
                 <select 
-                  className="bg-transparent border-none focus:outline-none text-gray-700 font-medium w-full md:w-auto"
+                  className="bg-transparent border-none focus:outline-none text-gray-700 font-medium w-full sm:w-auto"
                   value={selectedPeriod}
                   onChange={(e) => setSelectedPeriod(e.target.value)}
                 >
@@ -514,131 +515,161 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="space-y-6">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-              {dashboardStats.map((stat, index) => (
-                <div key={index} className="bg-white rounded-lg shadow-sm p-4 md:p-6 border border-gray-100 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                <div>
-                      <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                      <p className="mt-2 text-2xl md:text-3xl font-semibold text-gray-900">{stat.value}</p>
-                    </div>
-                    <div className={`p-2 md:p-3 rounded-full bg-${stat.color}-50`}>
-                      {stat.icon}
-                    </div>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {dashboardStats.map((stat, index) => (
+              <div key={index} className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                    <p className="mt-2 text-2xl font-semibold text-gray-900">{stat.value}</p>
                   </div>
-                  <div className="mt-4 flex items-center">
-                    <FiTrendingUp className="text-green-500" size={16} />
-                    <span className="ml-2 text-sm font-medium text-green-500">{stat.change}</span>
-                    <span className="ml-2 text-xs md:text-sm text-gray-500">from last {selectedPeriod}</span>
+                  <div className={`p-2 rounded-full bg-${stat.color}-50`}>
+                    {stat.icon}
                   </div>
                 </div>
-              ))}
-            </div>
+                <div className="mt-4 flex items-center text-sm">
+                  <FiTrendingUp className="text-green-500" size={16} />
+                  <span className="ml-2 font-medium text-green-500">{stat.change}</span>
+                  <span className="ml-2 text-gray-500">from last {selectedPeriod}</span>
+                </div>
+              </div>
+            ))}
+          </div>
 
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-1 gap-4 md:gap-6">
-              {/* Category Sales Chart */}
-              <div className="bg-white rounded-xl shadow-sm p-4 md:p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Sales by Category</h3>
-                <div className="h-60 md:h-80">
-                  {stats.categorySales && stats.categorySales.length > 0 ? (
-                    <Doughnut 
-                      data={categorySalesData}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: {
-                            position: 'bottom',
-                            labels: {
-                              boxWidth: 12,
-                              padding: 15,
-                              font: {
-                                size: 11
-                              }
+          {/* Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Category Sales Chart */}
+            <div className="bg-white rounded-xl shadow-sm p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Sales by Category</h3>
+              <div className="h-64 md:h-80">
+                {stats.categorySales && stats.categorySales.length > 0 ? (
+                  <Doughnut 
+                    data={categorySalesData}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: 'bottom',
+                          labels: {
+                            boxWidth: 12,
+                            padding: 15,
+                            font: {
+                              size: 11
                             }
-                          },
+                          }
                         },
-                      }}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-gray-500">No category sales data available</p>
-                    </div>
-                  )}
-                </div>
+                      },
+                    }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-500">No category sales data available</p>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Recent Orders and Top Products */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-              {/* Recent Orders */}
-              <div className="bg-white rounded-xl shadow-sm p-4 md:p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Recent Orders</h3>
-                  <Link to="/orders" className="text-sm text-green-600 hover:text-green-700">
-                    View All
-                  </Link>
-                </div>
-                <div className="space-y-3 md:space-y-4 overflow-x-auto">
-                  {stats.recentOrders.length > 0 ? (
-                    stats.recentOrders.slice(0, 5).map((order) => (
-                      <div key={order._id} className="flex items-center justify-between p-3 md:p-4 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-gray-900">Order #{order._id.slice(-6)}</p>
-                          <p className="text-sm text-gray-500">{order.customerName}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium text-gray-900">₹{order.total.toLocaleString()}</p>
-                          <p className={`text-sm ${
-                            order.status === 'completed' ? 'text-green-600' :
-                            order.status === 'pending' ? 'text-yellow-600' :
-                            'text-blue-600'
-                          }`}>
-                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-4 text-gray-500">No recent orders</div>
-                  )}
-                </div>
+            {/* Daily Sales Chart */}
+            <div className="bg-white rounded-xl shadow-sm p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Sales</h3>
+              <div className="h-64 md:h-80">
+                <Line 
+                  data={dailySalesData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        display: false
+                      }
+                    },
+                    scales: {
+                      y: {
+                        beginAtZero: true
+                      }
+                    }
+                  }}
+                />
               </div>
+            </div>
+          </div>
 
-              {/* Top Products */}
-              <div className="bg-white rounded-xl shadow-sm p-4 md:p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Top Selling Products</h3>
-                  <Link to="/products" className="text-sm text-green-600 hover:text-green-700">
-                    View All
-                  </Link>
-                </div>
-                <div className="space-y-3 md:space-y-4 overflow-x-auto">
-                  {stats.topProducts.length > 0 ? (
-                    stats.topProducts.slice(0, 5).map((product) => (
-                      <div key={product._id} className="flex items-center justify-between p-3 md:p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3 md:space-x-4">
-                          <img
-                            src={product.image}
-                            alt={product.name}
-                            className="w-10 h-10 md:w-12 md:h-12 rounded-lg object-cover"
-                          />
+          {/* Recent Orders and Top Products */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Recent Orders */}
+            <div className="bg-white rounded-xl shadow-sm p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Recent Orders</h3>
+                <Link to="/orders" className="text-sm text-green-600 hover:text-green-700">
+                  View All
+                </Link>
+              </div>
+              <div className="overflow-x-auto">
+                <div className="min-w-full">
+                  {stats.recentOrders.length > 0 ? (
+                    <div className="space-y-3">
+                      {stats.recentOrders.slice(0, 5).map((order) => (
+                        <div key={order._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div>
-                            <p className="font-medium text-gray-900 text-sm md:text-base">{product.name}</p>
-                            <p className="text-xs md:text-sm text-gray-500">{product.category}</p>
+                            <p className="font-medium text-gray-900">Order #{order._id.slice(-6)}</p>
+                            <p className="text-sm text-gray-500">{order.customerName}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium text-gray-900">₹{order.total.toLocaleString()}</p>
+                            <p className={`text-sm ${
+                              order.status === 'completed' ? 'text-green-600' :
+                              order.status === 'pending' ? 'text-yellow-600' :
+                              'text-blue-600'
+                            }`}>
+                              {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                            </p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium text-gray-900 text-sm md:text-base">{product.totalSold} sold</p>
-                          <p className="text-xs md:text-sm text-green-600">₹{product.revenue.toLocaleString()}</p>
-                        </div>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   ) : (
-                    <div className="text-center py-4 text-gray-500">No top products data</div>
+                    <p className="text-gray-500 text-center py-4">No recent orders</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Top Products */}
+            <div className="bg-white rounded-xl shadow-sm p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Top Products</h3>
+                <Link to="/products" className="text-sm text-green-600 hover:text-green-700">
+                  View All
+                </Link>
+              </div>
+              <div className="overflow-x-auto">
+                <div className="min-w-full">
+                  {stats.topProducts.length > 0 ? (
+                    <div className="space-y-3">
+                      {stats.topProducts.slice(0, 5).map((product) => (
+                        <div key={product._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center">
+                            <img 
+                              src={product.image} 
+                              alt={product.name} 
+                              className="w-10 h-10 rounded-lg object-cover"
+                            />
+                            <div className="ml-3">
+                              <p className="font-medium text-gray-900">{product.name}</p>
+                              <p className="text-sm text-gray-500">{product.category}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium text-gray-900">₹{product.price.toLocaleString()}</p>
+                            <p className="text-sm text-gray-500">{product.soldCount} sold</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">No products data available</p>
                   )}
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserContext } from "../context/UserContext";
 import axios from "axios";
+import { FiUser, FiLock } from "react-icons/fi";
 
 // Configure axios defaults
 axios.defaults.withCredentials = true;
@@ -16,7 +17,6 @@ const Login = () => {
   });
 
   const [errors, setErrors] = useState({});
-  const [showRegistrationOptions, setShowRegistrationOptions] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -108,112 +108,86 @@ const Login = () => {
     }
   };
 
-  const handleRegistrationOption = (option) => {
-    switch (option) {
-      case "delivery":
-        navigate("/delivery-registration");
-        break;
-      case "end-user":
-        navigate("/end-user-registration");
-        break;
-      case "seller":
-        navigate("/seller-registration");
-        break;
-      default:
-        break;
-    }
-  };
-
   return (
-    <div className="bg-gray-50 min-h-screen flex items-center justify-center px-4">
-      <div className="bg-white shadow-lg rounded-lg p-6 sm:p-8 w-full max-w-lg">
-        <h2 className="text-2xl sm:text-3xl font-semibold text-center text-orange-500 mb-6">
-          Login
-        </h2>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-green-600">ApnaKirana</h1>
+          <p className="text-gray-600 mt-2">Your one-stop grocery delivery solution</p>
+        </div>
+        
+        <div className="bg-white shadow-lg rounded-lg p-6 sm:p-8">
+          <h2 className="text-2xl font-semibold text-center text-gray-800 mb-6">
+            Login to Your Account
+          </h2>
 
-        {loginError && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {loginError}
-          </div>
-        )}
+          {loginError && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              {loginError}
+            </div>
+          )}
 
-        <form className="space-y-5" onSubmit={handleLogin}>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className={`w-full px-4 py-2 border rounded-md ${
-                errors.email ? "border-red-500" : "border-gray-300"
+          <form className="space-y-5" onSubmit={handleLogin}>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FiUser className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className={`w-full pl-10 px-4 py-2 border rounded-md ${
+                    errors.email ? "border-red-500" : "border-gray-300"
+                  } focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent`}
+                  placeholder="Enter your email"
+                  disabled={isLoading}
+                />
+              </div>
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FiLock className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className={`w-full pl-10 px-4 py-2 border rounded-md ${
+                    errors.password ? "border-red-500" : "border-gray-300"
+                  } focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent`}
+                  placeholder="Enter your password"
+                  disabled={isLoading}
+                />
+              </div>
+              {errors.password && (
+                <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className={`w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition duration-200 ${
+                isLoading ? 'opacity-50 cursor-not-allowed' : ''
               }`}
-              placeholder="Enter your email"
-              disabled={isLoading}
-            />
-            {errors.email && (
-              <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className={`w-full px-4 py-2 border rounded-md ${
-                errors.password ? "border-red-500" : "border-gray-300"
-              }`}
-              placeholder="Enter your password"
-              disabled={isLoading}
-            />
-            {errors.password && (
-              <p className="text-red-500 text-sm mt-1">{errors.password}</p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            className={`w-full bg-orange-500 text-white py-2 px-4 rounded-md hover:bg-orange-600 transition duration-200 ${
-              isLoading ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <p className="text-gray-600">Don't have an account?</p>
-          <div className="mt-4 space-y-3">
-            <button
-              onClick={() => handleRegistrationOption("seller")}
-              className="w-full bg-gray-100 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-200 transition duration-200"
               disabled={isLoading}
             >
-              Register as Seller
+              {isLoading ? 'Logging in...' : 'Login'}
             </button>
-            <button
-              onClick={() => handleRegistrationOption("delivery")}
-              className="w-full bg-gray-100 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-200 transition duration-200"
-              disabled={isLoading}
-            >
-              Register as Delivery Agent
-            </button>
-            <button
-              onClick={() => handleRegistrationOption("end-user")}
-              className="w-full bg-gray-100 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-200 transition duration-200"
-              disabled={isLoading}
-            >
-              Register as Customer
-            </button>
-          </div>
+          </form>
         </div>
       </div>
     </div>
