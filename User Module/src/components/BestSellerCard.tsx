@@ -147,10 +147,10 @@ const BestSellerCard = ({
         </h3>
 
         <div className="flex items-center gap-2 mb-3">
-          <span className="font-bold text-xs sm:text-sm">₹{product.price.toFixed(2)}</span>
-          {product.oldPrice && (
+          <span className="font-bold text-xs sm:text-sm">₹{product.price?.toFixed(2) || '0.00'}</span>
+          {product.mrp && product.mrp > product.price && (
             <span className="text-xs text-muted-foreground line-through">
-              ₹{product.oldPrice.toFixed(2)}
+              ₹{product.mrp.toFixed(2)}
             </span>
           )}
         </div>

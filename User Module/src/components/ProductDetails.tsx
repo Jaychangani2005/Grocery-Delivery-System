@@ -73,7 +73,6 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
     } else {
       onUpdateCart(product.id, quantity);
     }
-    toggleCart();
   };
 
   const incrementQuantity = () => {

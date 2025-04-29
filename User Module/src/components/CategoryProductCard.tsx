@@ -46,7 +46,6 @@ const CategoryProductCard = ({
       setIsUpdating(true);
       await onAddToCart(product, 1);
       toast.success(`${product.name} added to cart`);
-      toggleCart();
     } catch (error) {
       console.error('Error adding to cart:', error);
       toast.error(error.message || 'Failed to add item to cart');

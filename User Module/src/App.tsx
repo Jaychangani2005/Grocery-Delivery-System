@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -17,7 +17,8 @@ import { useCart } from './hooks/use-cart';
 import Navbar from './components/Navbar';
 import LoginButton from './components/LoginButton';
 
-function App() {
+function AppContent() {
+  const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(authService.isLoggedIn());
   const [user, setUser] = useState(authService.getCurrentUser());
   const [selectedAddress, setSelectedAddress] = useState('');
@@ -65,6 +66,11 @@ function App() {
 
     fetchAddresses();
   }, [isLoggedIn]);
+
+  // Auto scroll to top on route change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [location.pathname]);
 
   const handleLogin = (userData) => {
     setUser(userData);
@@ -210,143 +216,149 @@ function App() {
   };
 
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Toaster position="top-right" />
-        <Navbar 
-          isLoggedIn={isLoggedIn}
-          user={user}
-          onLogout={handleLogout}
-          cartItems={cartItems}
-          isCartOpen={isCartOpen}
-          toggleCart={toggleCart}
-          selectedAddress={selectedAddress}
-          onAddressChange={handleAddressChange}
-        />
-        <Routes>
-          <Route path="/" element={
-            <Home
-              cartItems={cartItems}
-              onAddToCart={handleAddToCart}
-              onUpdateCart={handleUpdateCart}
-              onRemoveFromCart={handleRemoveFromCart}
-              isCartOpen={isCartOpen}
-              toggleCart={toggleCart}
-              isLoggedIn={isLoggedIn}
-              user={user}
-              onLogout={handleLogout}
-              selectedAddress={selectedAddress}
-              onAddressChange={handleAddressChange}
-              onLoginClick={() => window.location.href = '/auth'}
-              addresses={addresses}
-              onPlaceOrder={handlePlaceOrder}
-            />
-          } />
-          <Route path="/auth" element={<Auth onLogin={handleLogin} />} />
-          <Route path="/category/:category" element={
-            <CategoryPage
-              cartItems={cartItems}
-              onAddToCart={handleAddToCart}
-              onUpdateCart={handleUpdateCart}
-              onRemoveFromCart={handleRemoveFromCart}
-              isCartOpen={isCartOpen}
-              toggleCart={toggleCart}
-              isLoggedIn={isLoggedIn}
-              user={user}
-              onLogout={handleLogout}
-              selectedAddress={selectedAddress}
-              onAddressChange={handleAddressChange}
-              onLoginClick={() => window.location.href = '/auth'}
-              addresses={addresses}
-              onPlaceOrder={handlePlaceOrder}
-            />
-          } />
-          <Route path="/product/:productId" element={
-            <Home
-              cartItems={cartItems}
-              onAddToCart={handleAddToCart}
-              onUpdateCart={handleUpdateCart}
-              onRemoveFromCart={handleRemoveFromCart}
-              isCartOpen={isCartOpen}
-              toggleCart={toggleCart}
-              isLoggedIn={isLoggedIn}
-              user={user}
-              onLogout={handleLogout}
-              selectedAddress={selectedAddress}
-              onAddressChange={handleAddressChange}
-              onLoginClick={() => window.location.href = '/auth'}
-              addresses={addresses}
-              onPlaceOrder={handlePlaceOrder}
-            />
-          } />
-          <Route
-            path="/orders"
-            element={
-              <ProtectedRoute isLoggedIn={isLoggedIn}>
-                <Orders 
-                  isLoggedIn={isLoggedIn}
-                  user={user}
-                  onLogout={handleLogout}
-                  selectedAddress={selectedAddress}
-                  onAddressChange={handleAddressChange}
-                  cartItems={cartItems}
-                  onUpdateCart={handleUpdateCart}
-                  onRemoveFromCart={handleRemoveFromCart}
-                  isCartOpen={isCartOpen}
-                  toggleCart={toggleCart}
-                  onPlaceOrder={handlePlaceOrder}
-                  addresses={addresses}
-                />
-              </ProtectedRoute>
-            }
+    <div className="min-h-screen bg-gray-50">
+      <Toaster position="top-right" />
+      <Navbar 
+        isLoggedIn={isLoggedIn}
+        user={user}
+        onLogout={handleLogout}
+        cartItems={cartItems}
+        isCartOpen={isCartOpen}
+        toggleCart={toggleCart}
+        selectedAddress={selectedAddress}
+        onAddressChange={handleAddressChange}
+      />
+      <Routes>
+        <Route path="/" element={
+          <Home
+            cartItems={cartItems}
+            onAddToCart={handleAddToCart}
+            onUpdateCart={handleUpdateCart}
+            onRemoveFromCart={handleRemoveFromCart}
+            isCartOpen={isCartOpen}
+            toggleCart={toggleCart}
+            isLoggedIn={isLoggedIn}
+            user={user}
+            onLogout={handleLogout}
+            selectedAddress={selectedAddress}
+            onAddressChange={handleAddressChange}
+            onLoginClick={() => window.location.href = '/auth'}
+            addresses={addresses}
+            onPlaceOrder={handlePlaceOrder}
           />
-          <Route path="/cart" element={
-            <ProtectedRoute>
-              <Cart 
-                cartItems={cartItems}
-                onUpdateCart={handleUpdateCart}
-                onRemoveFromCart={handleRemoveFromCart}
+        } />
+        <Route path="/auth" element={<Auth onLogin={handleLogin} />} />
+        <Route path="/category/:category" element={
+          <CategoryPage
+            cartItems={cartItems}
+            onAddToCart={handleAddToCart}
+            onUpdateCart={handleUpdateCart}
+            onRemoveFromCart={handleRemoveFromCart}
+            isCartOpen={isCartOpen}
+            toggleCart={toggleCart}
+            isLoggedIn={isLoggedIn}
+            user={user}
+            onLogout={handleLogout}
+            selectedAddress={selectedAddress}
+            onAddressChange={handleAddressChange}
+            onLoginClick={() => window.location.href = '/auth'}
+            addresses={addresses}
+            onPlaceOrder={handlePlaceOrder}
+          />
+        } />
+        <Route path="/product/:productId" element={
+          <Home
+            cartItems={cartItems}
+            onAddToCart={handleAddToCart}
+            onUpdateCart={handleUpdateCart}
+            onRemoveFromCart={handleRemoveFromCart}
+            isCartOpen={isCartOpen}
+            toggleCart={toggleCart}
+            isLoggedIn={isLoggedIn}
+            user={user}
+            onLogout={handleLogout}
+            selectedAddress={selectedAddress}
+            onAddressChange={handleAddressChange}
+            onLoginClick={() => window.location.href = '/auth'}
+            addresses={addresses}
+            onPlaceOrder={handlePlaceOrder}
+          />
+        } />
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute isLoggedIn={isLoggedIn}>
+              <Orders 
                 isLoggedIn={isLoggedIn}
                 user={user}
                 onLogout={handleLogout}
                 selectedAddress={selectedAddress}
                 onAddressChange={handleAddressChange}
+                cartItems={cartItems}
+                onUpdateCart={handleUpdateCart}
+                onRemoveFromCart={handleRemoveFromCart}
+                isCartOpen={isCartOpen}
+                toggleCart={toggleCart}
+                onPlaceOrder={handlePlaceOrder}
+                addresses={addresses}
               />
             </ProtectedRoute>
-          } />
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Profile 
+          }
+        />
+        <Route path="/cart" element={
+          <ProtectedRoute>
+            <Cart 
+              cartItems={cartItems}
+              onUpdateCart={handleUpdateCart}
+              onRemoveFromCart={handleRemoveFromCart}
+              isLoggedIn={isLoggedIn}
+              user={user}
+              onLogout={handleLogout}
+              selectedAddress={selectedAddress}
+              onAddressChange={handleAddressChange}
+            />
+          </ProtectedRoute>
+        } />
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <Profile 
+              isLoggedIn={isLoggedIn}
+              user={user}
+              onLogout={handleLogout}
+              addresses={addresses}
+              onAddressChange={handleAddressChange}
+            />
+          </ProtectedRoute>
+        } />
+        <Route
+          path="/addresses"
+          element={
+            <ProtectedRoute isLoggedIn={isLoggedIn}>
+              <Addresses
                 isLoggedIn={isLoggedIn}
                 user={user}
                 onLogout={handleLogout}
                 addresses={addresses}
                 onAddressChange={handleAddressChange}
+                cartItems={cartItems}
+                onUpdateCart={handleUpdateCart}
+                onRemoveFromCart={handleRemoveFromCart}
+                isCartOpen={isCartOpen}
+                toggleCart={toggleCart}
+                onPlaceOrder={handlePlaceOrder}
               />
             </ProtectedRoute>
-          } />
-          <Route
-            path="/addresses"
-            element={
-              <ProtectedRoute isLoggedIn={isLoggedIn}>
-                <Addresses
-                  isLoggedIn={isLoggedIn}
-                  user={user}
-                  onLogout={handleLogout}
-                  addresses={addresses}
-                  onAddressChange={handleAddressChange}
-                  cartItems={cartItems}
-                  onUpdateCart={handleUpdateCart}
-                  onRemoveFromCart={handleRemoveFromCart}
-                  isCartOpen={isCartOpen}
-                  toggleCart={toggleCart}
-                  onPlaceOrder={handlePlaceOrder}
-                />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </div>
+          }
+        />
+      </Routes>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }

@@ -192,7 +192,6 @@ const Index = ({
       setIsUpdating(true);
       await onAddToCart(product, quantity);
       toast.success(`${product.name} added to cart`);
-      toggleCart();
     } catch (error) {
       console.error('Error adding to cart:', error);
       toast.error('Failed to add item to cart');
