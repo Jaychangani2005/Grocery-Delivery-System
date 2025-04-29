@@ -24,16 +24,21 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { userService } from "@/services/api";
 import { toast } from 'react-hot-toast';
+import CartDrawer from "@/components/CartDrawer";
+import { CartItem, Address } from "@/services/api";
 
 interface AddressesProps {
   isLoggedIn: boolean;
   user: { name: string; email: string } | null;
   onLogout: () => void;
-  addresses: string[];
+  addresses: Address[];
   onAddressChange: (address: string) => void;
-  cartItems: any[];
+  cartItems: CartItem[];
+  onUpdateCart: (productId: number, quantity: number) => void;
+  onRemoveFromCart: (productId: number) => void;
   isCartOpen: boolean;
   toggleCart: () => void;
+  onPlaceOrder: (paymentMethod: string) => void;
 }
 
 interface Address {
@@ -235,8 +240,11 @@ const Addresses: React.FC<AddressesProps> = ({
   addresses,
   onAddressChange,
   cartItems,
+  onUpdateCart,
+  onRemoveFromCart,
   isCartOpen,
   toggleCart,
+  onPlaceOrder,
 }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -476,6 +484,20 @@ const Addresses: React.FC<AddressesProps> = ({
       </main>
 
       <Footer />
+
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={toggleCart}
+        cartItems={cartItems}
+        updateQuantity={onUpdateCart}
+        removeFromCart={onRemoveFromCart}
+        selectedAddress={selectedAddress}
+        isLoggedIn={isLoggedIn}
+        onLoginClick={() => navigate('/auth')}
+        onPlaceOrder={onPlaceOrder}
+        addresses={addresses}
+        onAddressChange={onAddressChange}
+      />
     </div>
   );
 };

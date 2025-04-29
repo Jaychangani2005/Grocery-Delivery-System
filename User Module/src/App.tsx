@@ -8,6 +8,7 @@ import Orders from './pages/Orders';
 import Cart from './pages/Cart';
 import Profile from './pages/Profile';
 import Addresses from './pages/Addresses';
+import CategoryPage from './pages/CategoryPage';
 import { authService } from './services/auth';
 import { orderService, userService, PlaceOrderData, Address } from './services/api';
 import { toast } from 'react-hot-toast';
@@ -193,10 +194,15 @@ function App() {
       const response = await orderService.placeOrder(orderData);
       console.log('Order placed successfully:', response);
 
-      // Clear cart and close cart drawer
+      // Clear cart items from backend
+      await cartService.clearCart(user.id);
+      
+      // Clear cart state and close cart drawer
       setCartItems([]);
       setIsCartOpen(false);
+      
       toast.success('Order placed successfully');
+      window.location.href = '/orders';
     } catch (error) {
       console.error('Error placing order:', error);
       toast.error('Failed to place order');
@@ -237,8 +243,8 @@ function App() {
             />
           } />
           <Route path="/auth" element={<Auth onLogin={handleLogin} />} />
-          <Route path="/category/:categoryName" element={
-            <Home
+          <Route path="/category/:category" element={
+            <CategoryPage
               cartItems={cartItems}
               onAddToCart={handleAddToCart}
               onUpdateCart={handleUpdateCart}
@@ -283,6 +289,13 @@ function App() {
                   onLogout={handleLogout}
                   selectedAddress={selectedAddress}
                   onAddressChange={handleAddressChange}
+                  cartItems={cartItems}
+                  onUpdateCart={handleUpdateCart}
+                  onRemoveFromCart={handleRemoveFromCart}
+                  isCartOpen={isCartOpen}
+                  toggleCart={toggleCart}
+                  onPlaceOrder={handlePlaceOrder}
+                  addresses={addresses}
                 />
               </ProtectedRoute>
             }
@@ -312,20 +325,26 @@ function App() {
               />
             </ProtectedRoute>
           } />
-          <Route path="/addresses" element={
-            <ProtectedRoute>
-              <Addresses 
-                isLoggedIn={isLoggedIn}
-                user={user}
-                onLogout={handleLogout}
-                addresses={addresses}
-                onAddressChange={handleAddressChange}
-                cartItems={cartItems}
-                isCartOpen={isCartOpen}
-                toggleCart={toggleCart}
-              />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/addresses"
+            element={
+              <ProtectedRoute isLoggedIn={isLoggedIn}>
+                <Addresses
+                  isLoggedIn={isLoggedIn}
+                  user={user}
+                  onLogout={handleLogout}
+                  addresses={addresses}
+                  onAddressChange={handleAddressChange}
+                  cartItems={cartItems}
+                  onUpdateCart={handleUpdateCart}
+                  onRemoveFromCart={handleRemoveFromCart}
+                  isCartOpen={isCartOpen}
+                  toggleCart={toggleCart}
+                  onPlaceOrder={handlePlaceOrder}
+                />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </div>
     </Router>

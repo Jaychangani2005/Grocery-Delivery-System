@@ -8,6 +8,78 @@ const db = require('../config/db');
 router.post('/', authenticateToken, placeOrder);
 router.post('/place', authenticateToken, placeOrder);
 
+// Cancel order
+router.put('/:orderId/cancel', authenticateToken, async (req, res) => {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    
+    const { orderId } = req.params;
+    const userId = req.user.id;
+
+    console.log('Attempting to cancel order:', { orderId, userId });
+
+    // Check if order exists and belongs to user
+    const [orders] = await connection.query(
+      'SELECT * FROM orders WHERE order_id = ? AND user_id = ?',
+      [orderId, userId]
+    );
+
+    if (orders.length === 0) {
+      console.log('Order not found:', { orderId, userId });
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const order = orders[0];
+    console.log('Current order status:', order.status);
+
+    // Check if order can be cancelled
+    const nonCancellableStates = ['out for delivery', 'ready', 'delivered', 'cancelled'];
+    if (nonCancellableStates.includes(order.status.toLowerCase())) {
+      console.log('Order cannot be cancelled. Current status:', order.status);
+      return res.status(400).json({ 
+        error: `Order cannot be cancelled in its current state (${order.status})`,
+        currentStatus: order.status
+      });
+    }
+
+    // Update order status
+    await connection.query(
+      'UPDATE orders SET status = ? WHERE order_id = ?',
+      ['cancelled', orderId]
+    );
+
+    // Add status history
+    await connection.query(
+      'INSERT INTO order_status_history (order_id, old_status, new_status, changed_by) VALUES (?, ?, ?, ?)',
+      [orderId, order.status, 'cancelled', 'user']
+    );
+
+    // Restore product stock
+    const [orderItems] = await connection.query(
+      'SELECT product_id, quantity FROM order_items WHERE order_id = ?',
+      [orderId]
+    );
+
+    for (const item of orderItems) {
+      await connection.query(
+        'UPDATE products SET stock = stock + ? WHERE product_id = ?',
+        [item.quantity, item.product_id]
+      );
+    }
+
+    await connection.commit();
+    console.log('Order cancelled successfully:', orderId);
+    res.json({ message: 'Order cancelled successfully' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error cancelling order:', error);
+    res.status(500).json({ error: 'Failed to cancel order' });
+  } finally {
+    connection.release();
+  }
+});
+
 // Get user orders
 router.get('/', authenticateToken, async (req, res) => {
   try {

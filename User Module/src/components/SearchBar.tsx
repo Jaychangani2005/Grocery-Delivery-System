@@ -46,21 +46,27 @@ const SearchBar = ({ onClose, className }: SearchBarProps) => {
 
     try {
       setIsLoading(true);
-      console.log("Searching for:", query);
+      console.log("Starting search for:", query);
       
       // Call the search API
       const results = await productService.searchProducts(query.trim());
-      console.log("Search results:", results);
+      console.log("Search results received:", results);
       
-      // Navigate to search results page
-      navigate(`/category/all?search=${encodeURIComponent(query.trim())}`);
-      
-      // Close search dropdown
-      setIsFocused(false);
-      
-      // Close search bar on mobile after submitting
-      if (onClose && window.innerWidth < 768) {
-        onClose();
+      if (results && results.length > 0) {
+        console.log("Found", results.length, "products");
+        // Navigate to search results page
+        navigate(`/category/all?search=${encodeURIComponent(query.trim())}`);
+        
+        // Close search dropdown
+        setIsFocused(false);
+        
+        // Close search bar on mobile after submitting
+        if (onClose && window.innerWidth < 768) {
+          onClose();
+        }
+      } else {
+        console.log("No products found");
+        toast.error("No products found matching your search");
       }
     } catch (error) {
       console.error("Search error:", error);

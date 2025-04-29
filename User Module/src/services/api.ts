@@ -470,126 +470,38 @@ export const productService = {
       // Try to fetch from API first
       try {
         const response = await api.get<Product[]>(`/products/search?q=${encodeURIComponent(query.trim())}`);
+        console.log('Raw API response:', response);
         console.log('Search results from API:', response.data);
         
         // Ensure we have an array of products
         if (Array.isArray(response.data)) {
-          return response.data;
+          // Format the products to match the expected interface
+          const formattedProducts = response.data.map(product => ({
+            id: parseInt(product.id.toString()),
+            name: product.name,
+            description: product.description,
+            price: parseFloat(product.price.toString()),
+            oldPrice: parseFloat(product.oldPrice.toString()),
+            image: product.image || '/images/placeholder.jpg',
+            category: product.category,
+            rating: parseFloat(product.rating.toString()),
+            isOrganic: Boolean(product.isOrganic),
+            unit: product.unit,
+            stock: parseInt(product.stock.toString())
+          }));
+          console.log('Formatted products:', formattedProducts);
+          return formattedProducts;
         } else {
           console.warn('API returned non-array data:', response.data);
           throw new Error('Invalid response format');
         }
       } catch (apiError) {
-        console.log('API error, using mock data:', apiError);
-        
-        // If API fails, use mock data with improved search filtering
-        const mockProducts: Product[] = [
-          {
-            id: 1,
-            name: "Organic Apples",
-            description: "Fresh from Kashmir",
-            price: 150.00,
-            oldPrice: 180.00,
-            image: "/images/products/apples.jpg",
-            category: "Fruits",
-            rating: 4.5,
-            isOrganic: true,
-            unit: "1kg",
-            stock: 50
-          },
-          {
-            id: 2,
-            name: "Amul Butter",
-            description: "Salted 500g",
-            price: 250.00,
-            oldPrice: 280.00,
-            image: "/images/products/butter.jpg",
-            category: "Dairy",
-            rating: 4.2,
-            isOrganic: false,
-            unit: "500g",
-            stock: 30
-          },
-          {
-            id: 3,
-            name: "Basmati Rice",
-            description: "Extra long grain",
-            price: 600.00,
-            oldPrice: 650.00,
-            image: "/images/products/rice.jpg",
-            category: "Grains",
-            rating: 4.7,
-            isOrganic: false,
-            unit: "5kg",
-            stock: 20
-          },
-          {
-            id: 4,
-            name: "Fresh Tomatoes",
-            description: "Locally grown",
-            price: 80.00,
-            oldPrice: 100.00,
-            image: "/images/products/tomatoes.jpg",
-            category: "Vegetables",
-            rating: 4.0,
-            isOrganic: true,
-            unit: "1kg",
-            stock: 40
-          },
-          {
-            id: 5,
-            name: "Whole Wheat Bread",
-            description: "Freshly baked",
-            price: 60.00,
-            oldPrice: 70.00,
-            image: "/images/products/bread.jpg",
-            category: "Bakery",
-            rating: 4.3,
-            isOrganic: false,
-            unit: "400g",
-            stock: 25
-          }
-        ];
-        
-        // Filter mock products based on search query with improved matching
-        const searchTerm = query.toLowerCase().trim();
-        console.log('Filtering mock products with search term:', searchTerm);
-        
-        const getRelevanceScore = (product: Product): number => {
-          const name = product.name.toLowerCase();
-          const desc = product.description.toLowerCase();
-          const category = product.category.toLowerCase();
-          
-          if (name === searchTerm) return 10;
-          if (name.includes(` ${searchTerm} `)) return 8;
-          if (name.startsWith(`${searchTerm} `)) return 7;
-          if (name.endsWith(` ${searchTerm}`)) return 7;
-          if (name.includes(searchTerm)) return 5;
-          if (desc.includes(searchTerm)) return 3;
-          if (category.includes(searchTerm)) return 1;
-          return 0;
-        };
-        
-        const filteredProducts = mockProducts
-          .map(product => ({
-            ...product,
-            relevance: getRelevanceScore(product)
-          }))
-          .filter(product => product.relevance > 0)
-          .sort((a, b) => {
-            if (a.relevance !== b.relevance) {
-              return b.relevance - a.relevance;
-            }
-            return b.rating - a.rating;
-          })
-          .map(({ relevance, ...product }) => product);
-        
-        console.log(`Found ${filteredProducts.length} mock products matching "${query}"`);
-        return filteredProducts;
+        console.error('API error details:', apiError);
+        throw apiError;
       }
     } catch (error) {
       console.error('Error in searchProducts:', error);
-      return []; // Return empty array if both API and mock data fail
+      throw error;
     }
   },
 
@@ -880,7 +792,7 @@ export const userService = {
 };
 
 export const orderService = {
-  placeOrder: async (orderData: PlaceOrderData) => {
+  placeOrder: async (orderData: PlaceOrderData): Promise<{ orderId: number }> => {
     try {
       console.log('Raw order data received:', orderData);
       
@@ -983,6 +895,17 @@ export const orderService = {
 
     } catch (error) {
       console.error('Error in getOrders:', error);
+      throw error;
+    }
+  },
+
+  // Cancel order
+  cancelOrder: async (orderId: number): Promise<void> => {
+    try {
+      checkAuth();
+      await api.put(`/orders/${orderId}/cancel`);
+    } catch (error) {
+      console.error('Error cancelling order:', error);
       throw error;
     }
   }

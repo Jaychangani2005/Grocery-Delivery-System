@@ -4,8 +4,9 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Package, CheckCircle, XCircle, Clock } from "lucide-react";
-import { Order, orderService } from "@/services/api";
+import { Order, orderService, CartItem, Address } from "@/services/api";
 import { toast } from "sonner";
+import CartDrawer from "@/components/CartDrawer";
 
 interface OrdersProps {
   isLoggedIn: boolean;
@@ -13,12 +14,33 @@ interface OrdersProps {
   onLogout: () => void;
   selectedAddress: string;
   onAddressChange: (address: string) => void;
+  cartItems: CartItem[];
+  onUpdateCart: (productId: number, quantity: number) => void;
+  onRemoveFromCart: (productId: number) => void;
+  isCartOpen: boolean;
+  toggleCart: () => void;
+  onPlaceOrder: (paymentMethod: string) => void;
+  addresses: Address[];
 }
 
-const Orders = ({ isLoggedIn, user, onLogout, selectedAddress, onAddressChange }: OrdersProps) => {
+const Orders = ({ 
+  isLoggedIn, 
+  user, 
+  onLogout, 
+  selectedAddress, 
+  onAddressChange,
+  cartItems,
+  onUpdateCart,
+  onRemoveFromCart,
+  isCartOpen,
+  toggleCart,
+  onPlaceOrder,
+  addresses
+}: OrdersProps) => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCancelling, setIsCancelling] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -152,6 +174,73 @@ const Orders = ({ isLoggedIn, user, onLogout, selectedAddress, onAddressChange }
     }
   };
 
+  const handleCancelOrder = async (orderId: number) => {
+    // Find the order to get its status
+    const orderToCancel = orders.find(order => order.id === orderId);
+    if (!orderToCancel) {
+      toast.error('Order not found');
+      return;
+    }
+
+    // Check if order can be cancelled
+    if (!canCancelOrder(orderToCancel.status)) {
+      toast.error(`Order cannot be cancelled in its current state (${orderToCancel.status})`);
+      return;
+    }
+
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Are you sure you want to cancel Order #${orderId}?\n` +
+      `This action cannot be undone.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setIsCancelling(orderId);
+      await orderService.cancelOrder(orderId);
+      
+      // Update the order status in the local state
+      setOrders(prevOrders => 
+        prevOrders.map(order => 
+          order.id === orderId 
+            ? { ...order, status: 'cancelled' as const }
+            : order
+        )
+      );
+      
+      toast.success('Order cancelled successfully');
+    } catch (error: any) {
+      console.error('Error cancelling order:', error);
+      
+      // If the error is 400, it means the order cannot be cancelled
+      if (error.response?.status === 400) {
+        const errorMessage = error.response.data?.error || 'Order cannot be cancelled in its current state';
+        const currentStatus = error.response.data?.currentStatus;
+        
+        if (currentStatus) {
+          toast.error(`Order cannot be cancelled. Current status: ${currentStatus}`);
+        } else {
+          toast.error(errorMessage);
+        }
+        
+        // Refresh the orders to get the latest status
+        await fetchOrders();
+      } else {
+        toast.error('Failed to cancel order. Please try again.');
+      }
+    } finally {
+      setIsCancelling(null);
+    }
+  };
+
+  const canCancelOrder = (status: Order['status']) => {
+    const nonCancellableStates = ['out for delivery', 'ready', 'delivered', 'cancelled'];
+    return !nonCancellableStates.includes(status.toLowerCase());
+  };
+
   const renderOrderCard = (order: Order) => {
     return (
       <div key={order.id} className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-100">
@@ -161,24 +250,35 @@ const Orders = ({ isLoggedIn, user, onLogout, selectedAddress, onAddressChange }
             <div>
               <h3 className="text-lg font-semibold text-gray-800">Order #{order.id}</h3>
               <p className="text-sm text-gray-500">
-                Placed on {new Date(order.createdAt).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
+                Placed on {formatDate(order.createdAt)}
               </p>
             </div>
             <div className="flex flex-col items-end">
-              <span className={`px-4 py-1.5 rounded-full text-sm font-medium ${
-                order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                order.status === 'Out For delivery' ? 'bg-blue-100 text-blue-800' :
-                'bg-yellow-100 text-yellow-800'
-              }`}>
-                {order.status}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`px-4 py-1.5 rounded-full text-sm font-medium ${
+                  order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                  order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                  order.status === 'Out For delivery' ? 'bg-blue-100 text-blue-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {order.status}
+                </span>
+                {canCancelOrder(order.status) && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleCancelOrder(order.id)}
+                    disabled={isCancelling === order.id}
+                    className="ml-2"
+                  >
+                    {isCancelling === order.id ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      'Cancel'
+                    )}
+                  </Button>
+                )}
+              </div>
               <span className="text-sm text-gray-500 mt-1">
                 {order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment'}
               </span>
@@ -245,13 +345,14 @@ const Orders = ({ isLoggedIn, user, onLogout, selectedAddress, onAddressChange }
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar
-        toggleCart={() => {}}
-        cartItems={[]}
+        toggleCart={toggleCart}
+        cartItems={cartItems}
         isLoggedIn={isLoggedIn}
         user={user}
         onLogout={onLogout}
         selectedAddress={selectedAddress}
         onAddressChange={onAddressChange}
+        isCartOpen={isCartOpen}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-10 flex-1">
@@ -302,6 +403,20 @@ const Orders = ({ isLoggedIn, user, onLogout, selectedAddress, onAddressChange }
       </div>
 
       <Footer />
+
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={toggleCart}
+        cartItems={cartItems}
+        updateQuantity={onUpdateCart}
+        removeFromCart={onRemoveFromCart}
+        selectedAddress={selectedAddress}
+        isLoggedIn={isLoggedIn}
+        onLoginClick={() => navigate('/auth')}
+        onPlaceOrder={onPlaceOrder}
+        addresses={addresses}
+        onAddressChange={onAddressChange}
+      />
     </div>
   );
 };

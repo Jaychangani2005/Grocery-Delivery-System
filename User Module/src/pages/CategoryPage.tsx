@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "react-hot-toast";
 
 interface CategoryPageProps {
   cartItems: { product: Product; quantity: number }[];
@@ -55,33 +56,43 @@ const CategoryPage = ({
 
         if (searchQuery) {
           // If there's a search query, use the search API
+          console.log('Fetching search results for:', searchQuery);
           data = await productService.searchProducts(searchQuery);
+          console.log('Search results:', data);
         } else if (category && category !== 'all') {
           // If there's a category (and it's not 'all'), fetch by category
-          const response = await fetch(`http://localhost:3000/api/products/category/${category}`);
-          if (!response.ok) {
-            throw new Error('Failed to fetch products');
-          }
-          data = await response.json();
+          console.log('Fetching products for category:', category);
+          data = await productService.getProductsByCategory(category);
+          console.log('Category products:', data);
         } else {
           // If no search query and no specific category (or 'all'), fetch all products
-          const response = await fetch('http://localhost:3000/api/products');
-          if (!response.ok) {
-            throw new Error('Failed to fetch products');
-          }
-          data = await response.json();
+          console.log('Fetching all products');
+          data = await productService.getAllProducts();
+          console.log('All products:', data);
         }
 
+        console.log('Setting products state with:', data);
         setProducts(data);
+        setIsLoading(false);
       } catch (error) {
         console.error('Error fetching products:', error);
-      } finally {
         setIsLoading(false);
+        // Show error message to user
+        toast.error('Failed to fetch products. Please try again.');
       }
     };
 
+    console.log('CategoryPage effect running with:', { category, searchQuery });
     fetchProducts();
   }, [category, searchQuery]);
+
+  // Add debug logging for render
+  console.log('CategoryPage rendering with:', {
+    isLoading,
+    productsCount: products.length,
+    searchQuery,
+    category
+  });
 
   const getPageTitle = () => {
     if (searchQuery) {
@@ -107,6 +118,7 @@ const CategoryPage = ({
         onLogout={onLogout}
         selectedAddress={selectedAddress}
         onAddressChange={onAddressChange}
+        isCartOpen={isCartOpen}
       />
       
       <main className="flex-grow container mx-auto px-4 py-8">

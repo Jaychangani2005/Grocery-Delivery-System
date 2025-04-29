@@ -107,16 +107,24 @@ const productController = {
         return productController.getAllProducts(req, res);
       }
       
-      // First, try to get category by ID
+      // Decode and format the category name
+      const decodedCategoryName = decodeURIComponent(categoryId)
+        .toLowerCase()
+        .replace(/-/g, ' ')
+        .trim();
+      
+      console.log('Decoded category name:', decodedCategoryName);
+      
+      // First, try to get category by ID or name
       const [categories] = await pool.query(
-        'SELECT category_id, name FROM product_categories WHERE category_id = ? OR LOWER(name) = LOWER(?)',
-        [categoryId, categoryId.replace(/-/g, ' ')]
+        'SELECT category_id, name FROM product_categories WHERE category_id = ? OR LOWER(name) = ?',
+        [categoryId, decodedCategoryName]
       );
       
       console.log('Found categories:', categories);
 
       if (categories.length === 0) {
-        console.log('No category found for:', categoryId);
+        console.log('No category found for:', decodedCategoryName);
         return res.status(404).json({ error: 'Category not found' });
       }
 
@@ -225,14 +233,13 @@ const productController = {
   searchProducts: async (req, res) => {
     try {
       const { q } = req.query;
+      console.log('Search query:', q);
+
       if (!q) {
-        return res.json([]);
+        return res.status(400).json({ error: 'Search query is required' });
       }
-      
-      const searchTerm = q.toLowerCase();
-      const wildcardTerm = `%${searchTerm}%`;
-      const exactTerm = searchTerm;
-      
+
+      const searchTerm = `%${q}%`;
       const [products] = await pool.query(`
         SELECT 
           p.product_id as id,
@@ -246,40 +253,30 @@ const productController = {
           p.unit,
           pi.image_url as image,
           CASE 
-            WHEN LOWER(p.name) = ? THEN 10
-            WHEN LOWER(p.name) LIKE CONCAT('% ', ?, ' %') THEN 8
-            WHEN LOWER(p.name) LIKE CONCAT(?, ' %') THEN 7
-            WHEN LOWER(p.name) LIKE CONCAT('% ', ?) THEN 7
-            WHEN LOWER(p.name) LIKE ? THEN 5
-            WHEN LOWER(p.product_detail) LIKE ? THEN 3
-            WHEN LOWER(pc.name) LIKE ? THEN 1
-            ELSE 0
-          END as relevance
+            WHEN p.name LIKE '%organic%' OR p.name LIKE '%Organic%' THEN 1 
+            ELSE 0 
+          END as isOrganic
         FROM products p
         LEFT JOIN product_categories pc ON p.category_id = pc.category_id
         LEFT JOIN order_ratings r ON p.product_id = r.order_id
         LEFT JOIN product_images pi ON p.product_id = pi.product_id
-        WHERE (
-          LOWER(p.name) LIKE ? OR 
-          LOWER(p.product_detail) LIKE ? OR 
-          LOWER(pc.name) LIKE ?
-        ) AND p.stock > 0
+        WHERE p.stock > 0
+          AND (
+            p.name LIKE ? 
+            OR p.product_detail LIKE ? 
+            OR pc.name LIKE ?
+          )
         GROUP BY p.product_id
-        HAVING relevance > 0
-        ORDER BY relevance DESC, rating DESC, p.name
-        LIMIT 20
-      `, [
-        exactTerm,
-        exactTerm,
-        exactTerm,
-        exactTerm,
-        wildcardTerm,
-        wildcardTerm,
-        wildcardTerm,
-        wildcardTerm,
-        wildcardTerm,
-        wildcardTerm
-      ]);
+        ORDER BY 
+          CASE 
+            WHEN p.name LIKE ? THEN 1
+            WHEN p.name LIKE ? THEN 2
+            ELSE 3
+          END,
+          rating DESC
+      `, [searchTerm, searchTerm, searchTerm, q, searchTerm]);
+
+      console.log('Found products:', products.length);
 
       // Format the response
       const formattedProducts = products.map(product => ({
@@ -291,11 +288,12 @@ const productController = {
         image: product.image || `/images/placeholder.jpg`,
         category: product.category,
         rating: parseFloat(product.rating),
+        isOrganic: Boolean(product.isOrganic),
         unit: product.unit,
         stock: parseInt(product.stock)
       }));
 
-      console.log(`Found ${formattedProducts.length} products matching "${q}"`);
+      console.log('Sending formatted products:', formattedProducts.length);
       res.json(formattedProducts);
     } catch (error) {
       console.error('Error searching products:', error);
