@@ -1,17 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { API_URL } from '@/config';
-
-interface CartItem {
-  id: number;
-  product: {
-    id: number;
-    name: string;
-    price: number;
-    image: string;
-    unit: string;
-  };
-  quantity: number;
-}
+import { CartItem } from './api';
 
 export class CartService {
   private static instance: CartService;

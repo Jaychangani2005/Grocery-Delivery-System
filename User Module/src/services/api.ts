@@ -29,11 +29,18 @@ export interface Category {
 }
 
 export interface CartItem {
-  id: number;
-  productId: number;
+  id?: number;
+  productId?: number;
+  price?: number;
+  product: {
+    id: number;
+    name: string;
+    price: number;
+    description: string;
+    unit: string;
+    image: string;
+  };
   quantity: number;
-  price: number;
-  product: Product;
 }
 
 export interface Order {

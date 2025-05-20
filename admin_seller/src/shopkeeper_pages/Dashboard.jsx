@@ -55,7 +55,6 @@ const Dashboard = () => {
     completedDeliveries: 0,
     canceledOrders: 0,
     recentOrders: [],
-    categorySales: [],
     dailySales: [],
     topProducts: [],
     averageOrderValue: 0,
@@ -266,23 +265,6 @@ const Dashboard = () => {
         const topProducts = Object.values(productSalesMap)
           .sort((a, b) => b.totalSold - a.totalSold)
           .slice(0, 5);
-
-        // Aggregate sales by category
-        const categorySalesMap = {};
-        allOrders.forEach(order => {
-          const items = order.items || order.products || [];
-          items.forEach(item => {
-              const category = item.category || item.product_category || 'Uncategorized';
-              const price = parseFloat(item.price) || 0;
-              const quantity = parseInt(item.quantity) || 0;
-              const amount = price * quantity;
-              if (!categorySalesMap[category]) {
-                categorySalesMap[category] = 0;
-              }
-              categorySalesMap[category] += amount;
-            });
-        });
-        const categorySalesData = Object.entries(categorySalesMap).map(([name, total]) => ({ name, total }));
         
         // Update the stats state
         setStats(prevStats => ({
@@ -295,7 +277,6 @@ const Dashboard = () => {
           averageOrderValue,
           totalProducts: productsRes.data.length,
           lowStockProducts: productsRes.data.filter(p => p.stock < 10).length,
-          categorySales: categorySalesData,
           totalCustomers: totalCustomersRes.data.total_customers || 0,
           totalCategories: prevStats.totalCategories,
           recentOrders: prevStats.recentOrders,
@@ -377,7 +358,7 @@ const Dashboard = () => {
       color: 'blue'
     },
     {
-      title: 'Active Deliveries',
+      title: 'Active Orders',
       value: stats.activeDeliveries,
       icon: <FiTruck className="text-green-500" size={24} />,
       change: '+5%',
@@ -428,37 +409,6 @@ const Dashboard = () => {
   ];
 
   // Chart configurations
-  const categorySalesData = {
-    labels: stats.categorySales && stats.categorySales.length > 0 
-      ? stats.categorySales.map(cat => cat.name) 
-      : ['No Data'],
-    datasets: [
-      {
-        label: 'Sales by Category',
-        data: stats.categorySales && stats.categorySales.length > 0 
-          ? stats.categorySales.map(cat => cat.total) 
-          : [1],
-        backgroundColor: [
-          'rgba(255, 99, 132, 0.8)',
-          'rgba(54, 162, 235, 0.8)',
-          'rgba(255, 206, 86, 0.8)',
-          'rgba(75, 192, 192, 0.8)',
-          'rgba(153, 102, 255, 0.8)',
-          'rgba(255, 159, 64, 0.8)',
-          'rgba(201, 203, 207, 0.8)',
-          'rgba(255, 99, 71, 0.8)',
-          'rgba(50, 205, 50, 0.8)',
-          'rgba(147, 112, 219, 0.8)',
-        ],
-      },
-    ],
-  };
-
-  // Add console log to debug category sales data
-  useEffect(() => {
-    console.log('Category Sales Data:', stats.categorySales);
-  }, [stats.categorySales]);
-
   const dailySalesData = {
     labels: stats.dailySales.map(sale => sale.date),
     datasets: [
@@ -539,38 +489,6 @@ const Dashboard = () => {
 
           {/* Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Category Sales Chart */}
-            <div className="bg-white rounded-xl shadow-sm p-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Sales by Category</h3>
-              <div className="h-64 md:h-80">
-                {stats.categorySales && stats.categorySales.length > 0 ? (
-                  <Doughnut 
-                    data={categorySalesData}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          position: 'bottom',
-                          labels: {
-                            boxWidth: 12,
-                            padding: 15,
-                            font: {
-                              size: 11
-                            }
-                          }
-                        },
-                      },
-                    }}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-gray-500">No category sales data available</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* Daily Sales Chart */}
             <div className="bg-white rounded-xl shadow-sm p-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Sales</h3>

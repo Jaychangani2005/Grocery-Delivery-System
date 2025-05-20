@@ -201,17 +201,23 @@ function AppContent() {
       console.log('Order placed successfully:', response);
 
       // Clear cart items from backend
-      await cartService.clearCart(user.id);
-      
-      // Clear cart state and close cart drawer
-      setCartItems([]);
-      setIsCartOpen(false);
-      
-      toast.success('Order placed successfully');
-      window.location.href = '/orders';
+      try {
+        await cartService.clearCart();
+        // Clear cart state and close cart drawer
+        setCartItems([]);
+        setIsCartOpen(false);
+        toast.success('Order placed successfully');
+        // Navigate to orders page
+        window.location.href = '/orders';
+      } catch (cartError) {
+        console.error('Error clearing cart:', cartError);
+        toast.error('Order placed but cart clearing failed. Please clear your cart manually.');
+        // Still navigate to orders page even if cart clearing fails
+        window.location.href = '/orders';
+      }
     } catch (error) {
       console.error('Error placing order:', error);
-      toast.error('Failed to place order');
+      toast.error('Failed to place order. Please try again.');
     }
   };
 
